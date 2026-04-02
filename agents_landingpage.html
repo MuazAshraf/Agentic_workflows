@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Workflows — LangGraph Patterns</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              700: '#1a1f2e',
+              800: '#131825',
+              900: '#0c1018',
+              950: '#080b12',
+            },
+            accent: {
+              DEFAULT: '#3b82f6',
+              muted: '#1d4ed8',
+              glow: 'rgba(59,130,246,0.15)',
+            },
+            success: '#10b981',
+            danger: '#ef4444',
+            warn: '#f59e0b',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+    /* Glassmorphism card */
+    .glass {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* Card entrance */
+    @keyframes slideUp {
+      0% { opacity: 0; transform: translateY(32px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter {
+      opacity: 0;
+      animation: slideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+
+    /* Hero text fade */
+    @keyframes fadeInUp {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .hero-enter {
+      opacity: 0;
+      animation: fadeInUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+
+    /* Subtle floating glow behind hero */
+    .hero-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    /* Card hover glow */
+    .agent-card {
+      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1),
+                  box-shadow 0.3s ease,
+                  border-color 0.3s ease,
+                  background 0.3s ease;
+    }
+    .agent-card:hover {
+      transform: translateY(-4px) scale(1.015);
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.1);
+    }
+    .agent-card.card-blue:hover    { box-shadow: 0 0 40px rgba(59,130,246,0.1),  0 8px 32px rgba(0,0,0,0.3); }
+    .agent-card.card-emerald:hover { box-shadow: 0 0 40px rgba(16,185,129,0.1),  0 8px 32px rgba(0,0,0,0.3); }
+    .agent-card.card-purple:hover  { box-shadow: 0 0 40px rgba(168,85,247,0.1),  0 8px 32px rgba(0,0,0,0.3); }
+    .agent-card.card-amber:hover   { box-shadow: 0 0 40px rgba(245,158,11,0.08), 0 8px 32px rgba(0,0,0,0.3); }
+    .agent-card.card-cyan:hover    { box-shadow: 0 0 40px rgba(6,182,212,0.08),  0 8px 32px rgba(0,0,0,0.3); }
+
+    /* Dimmed coming-soon cards */
+    .agent-card.coming-soon {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .agent-card.coming-soon:hover {
+      transform: none;
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.06);
+      box-shadow: none;
+    }
+
+    /* Badge pulse for live status */
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .live-dot {
+      animation: livePulse 2s ease-in-out infinite;
+    }
+
+    /* Gradient text */
+    .gradient-text {
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  </style>
+</head>
+<body class="bg-surface-950 text-white min-h-screen antialiased">
+
+  <!-- Background ambient glows -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="hero-glow" style="top: -200px; left: 50%; transform: translateX(-50%); background: #3b82f6;"></div>
+    <div class="hero-glow" style="top: 400px; right: -200px; width: 400px; height: 400px; background: #8b5cf6; opacity: 0.06;"></div>
+    <div class="hero-glow" style="bottom: -100px; left: -100px; width: 350px; height: 350px; background: #06b6d4; opacity: 0.05;"></div>
+  </div>
+
+  <div class="relative z-10">
+
+    <!-- Hero Section -->
+    <header class="max-w-5xl mx-auto px-6 pt-24 pb-16 text-center">
+      <!-- Badge -->
+      <div class="hero-enter" style="animation-delay: 0.1s;">
+        <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium font-mono tracking-wide glass text-slate-400">
+          <svg class="w-3.5 h-3.5 text-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          Built with LangGraph + GPT-4o-mini + Tailwind
+        </span>
+      </div>
+
+      <!-- Title -->
+      <h1 class="hero-enter mt-8 text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-tight" style="animation-delay: 0.25s;">
+        <span class="gradient-text">Agent Workflows</span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="hero-enter mt-6 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-light" style="animation-delay: 0.4s;">
+        5 LangGraph agent patterns &#8212; each solving a real&#8209;world problem
+      </p>
+    </header>
+
+    <!-- Agent Cards Grid -->
+    <main class="max-w-6xl mx-auto px-6 pb-24">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- 1. Prompt Chaining — Live -->
+        <a href="/invoice/" class="agent-card card-blue glass rounded-2xl p-6 block card-enter border-t-2 border-t-blue-500/60" style="animation-delay: 0.5s;">
+          <div class="flex items-start justify-between mb-5">
+            <div class="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
+              Live
+            </span>
+          </div>
+          <p class="text-[11px] font-mono font-medium tracking-widest uppercase text-blue-400/80 mb-1.5">Prompt Chaining</p>
+          <h3 class="text-base font-semibold text-white mb-2">Invoice Processing Pipeline</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Extract &rarr; Validate &rarr; PO Match &rarr; Payment Entry. Upload an invoice PDF, get a payment slip.
+          </p>
+        </a>
+
+        <!-- 2. Orchestrator-Worker — Live -->
+        <a href="/research/" class="agent-card card-emerald glass rounded-2xl p-6 block card-enter border-t-2 border-t-emerald-500/60" style="animation-delay: 0.6s;">
+          <div class="flex items-start justify-between mb-5">
+            <div class="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-5.07l-2.83 2.83M9.76 14.24l-2.83 2.83m11.14 0l-2.83-2.83M9.76 9.76L6.93 6.93"/>
+              </svg>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
+              Live
+            </span>
+          </div>
+          <p class="text-[11px] font-mono font-medium tracking-widest uppercase text-emerald-400/80 mb-1.5">Orchestrator-Worker</p>
+          <h3 class="text-base font-semibold text-white mb-2">Market Research Tool</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Enter a business idea, get a full competitive analysis report with real web data.
+          </p>
+        </a>
+
+        <!-- 3. Evaluator-Optimizer — Live -->
+        <a href="/tutor/" class="agent-card card-purple glass rounded-2xl p-6 block card-enter border-t-2 border-t-purple-500/60" style="animation-delay: 0.7s;">
+          <div class="flex items-start justify-between mb-5">
+            <div class="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422A12.083 12.083 0 0121 12.75c0 3.314-4.03 6-9 6s-9-2.686-9-6a12.06 12.06 0 012.84-2.172L12 14z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7.5"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 9.5v5"/>
+              </svg>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
+              Live
+            </span>
+          </div>
+          <p class="text-[11px] font-mono font-medium tracking-widest uppercase text-purple-400/80 mb-1.5">Evaluator-Optimizer</p>
+          <h3 class="text-base font-semibold text-white mb-2">AI Tutor</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Learn any concept with diagrams. Take a quiz. Fail? Get a simpler explanation. Loop until you pass.
+          </p>
+        </a>
+
+        <!-- 4. Routing — Coming Soon -->
+        <div class="agent-card coming-soon card-amber glass rounded-2xl p-6 card-enter border-t-2 border-t-amber-500/30" style="animation-delay: 0.8s;">
+          <div class="flex items-start justify-between mb-5">
+            <div class="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-amber-400/70" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-2-2m0 0l2-2m-2 2h6"/>
+              </svg>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/5 text-slate-500 border border-white/10">
+              Coming Soon
+            </span>
+          </div>
+          <p class="text-[11px] font-mono font-medium tracking-widest uppercase text-amber-400/50 mb-1.5">Routing</p>
+          <h3 class="text-base font-semibold text-slate-300 mb-2">Intent Router</h3>
+          <p class="text-sm text-slate-500 leading-relaxed">
+            Smart request routing based on intent classification.
+          </p>
+        </div>
+
+        <!-- 5. Parallelization — Coming Soon -->
+        <div class="agent-card coming-soon card-cyan glass rounded-2xl p-6 card-enter border-t-2 border-t-cyan-500/30" style="animation-delay: 0.9s;">
+          <div class="flex items-start justify-between mb-5">
+            <div class="w-11 h-11 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-cyan-400/70" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h4m0 0V3m0 4l-4 4m18-4h-4m0 0V3m0 4l4 4M3 17h4m0 0v4m0-4l-4-4m18 4h-4m0 0v4m0-4l4-4"/>
+              </svg>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/5 text-slate-500 border border-white/10">
+              Coming Soon
+            </span>
+          </div>
+          <p class="text-[11px] font-mono font-medium tracking-widest uppercase text-cyan-400/50 mb-1.5">Parallelization</p>
+          <h3 class="text-base font-semibold text-slate-300 mb-2">Parallel Executor</h3>
+          <p class="text-sm text-slate-500 leading-relaxed">
+            Run multiple AI tasks simultaneously and aggregate results.
+          </p>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-5xl mx-auto px-6 pb-12 text-center">
+      <div class="border-t border-white/5 pt-8">
+        <p class="text-sm text-slate-500">
+          Built by <span class="text-slate-400 font-medium">Muaz Ashraf</span>
+          <span class="mx-2 text-slate-700">&middot;</span>
+          <span class="font-mono text-xs text-slate-600">LangGraph + OpenAI + Tailwind CSS</span>
+        </p>
+      </div>
+    </footer>
+
+  </div>
+
+</body>
+</html>

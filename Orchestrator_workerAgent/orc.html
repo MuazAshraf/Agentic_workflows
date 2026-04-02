@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Research Tool — Orchestrator-Worker Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              700: '#1a1f2e',
+              800: '#131825',
+              900: '#0c1018',
+              950: '#080b12',
+            },
+            accent: {
+              DEFAULT: '#3b82f6',
+              muted: '#1d4ed8',
+              glow: 'rgba(59,130,246,0.15)',
+            },
+            success: '#10b981',
+            danger: '#ef4444',
+            warn: '#f59e0b',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+    /* Glassmorphism card */
+    .glass {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .glass-hover:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    /* Pipeline node pulse */
+    @keyframes nodePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
+    }
+    .node-active { animation: nodePulse 1.8s ease-in-out infinite; }
+
+    /* Connecting line animation */
+    @keyframes lineFlow {
+      0% { background-position: 0% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .line-active {
+      background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.6) 50%, rgba(59,130,246,0.1) 100%);
+      background-size: 200% 100%;
+      animation: lineFlow 1.5s linear infinite;
+    }
+    .line-done { background: rgba(16,185,129,0.4); }
+    .line-idle { background: rgba(255,255,255,0.06); }
+
+    /* Card entrance */
+    @keyframes slideUp {
+      0% { opacity: 0; transform: translateY(24px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter { animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* Subtle glow on hover */
+    .glow-hover:hover { box-shadow: 0 0 30px rgba(59,130,246,0.08); }
+
+    /* Fade in */
+    @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+
+    /* Badge pulse for success/fail */
+    @keyframes badgePop {
+      0% { transform: scale(0.7); opacity: 0; }
+      60% { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .badge-pop { animation: badgePop 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* Markdown rendered content styles */
+    .md-content h2 { font-size: 1.15rem; font-weight: 700; color: #e2e8f0; margin: 1.2rem 0 0.6rem; }
+    .md-content h3 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 1rem 0 0.5rem; }
+    .md-content h4 { font-size: 0.9rem; font-weight: 600; color: #94a3b8; margin: 0.8rem 0 0.4rem; }
+    .md-content p { color: #94a3b8; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.6rem; }
+    .md-content ul { list-style: none; padding-left: 0; margin: 0.5rem 0; }
+    .md-content ul li { position: relative; padding-left: 1.2rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.25rem; }
+    .md-content ul li::before { content: ''; position: absolute; left: 0; top: 0.65rem; width: 5px; height: 5px; border-radius: 50%; background: #3b82f6; }
+    .md-content strong { color: #e2e8f0; font-weight: 600; }
+    .md-content a { color: #60a5fa; text-decoration: underline; text-underline-offset: 2px; }
+    .md-content a:hover { color: #93c5fd; }
+    .md-content hr { border: none; height: 1px; background: rgba(255,255,255,0.06); margin: 1rem 0; }
+
+    /* Collapsible */
+    .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16,1,0.3,1); }
+    .collapsible-content.open { max-height: 2000px; }
+  </style>
+</head>
+<body class="bg-surface-950 text-white min-h-screen antialiased">
+
+  <!-- =============== TOP NAV =============== -->
+  <nav class="sticky top-0 z-50 glass border-b border-white/5">
+    <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/"
+         class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors duration-200 group">
+        <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        All Agents
+      </a>
+      <div class="text-center">
+        <h1 class="text-base font-semibold tracking-tight">Market Research Tool</h1>
+        <p class="text-[11px] text-slate-500 font-medium tracking-wide uppercase">Orchestrator-Worker Agent</p>
+      </div>
+      <div class="w-24"></div>
+    </div>
+  </nav>
+
+  <!-- =============== FLOW VISUALIZATION =============== -->
+  <section class="max-w-[1600px] mx-auto px-6 pt-8 pb-4">
+    <div class="glass rounded-2xl px-8 py-6">
+      <div class="flex items-center justify-between" id="pipeline-bar">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== MAIN CONTENT =============== -->
+  <main class="max-w-[1600px] mx-auto px-6 pb-12 flex gap-6" style="min-height: calc(100vh - 200px);">
+
+    <!-- LEFT PANEL -->
+    <aside class="w-[380px] flex-shrink-0 flex flex-col gap-5">
+
+      <!-- Input Card -->
+      <div class="glass rounded-2xl p-6 glow-hover transition-all duration-300">
+        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          Business Idea
+        </h2>
+
+        <textarea id="idea-input" rows="5"
+                  placeholder="Describe your business idea... e.g. An AI-powered invoice processing tool for small businesses"
+                  class="w-full px-3 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors resize-none leading-relaxed"></textarea>
+
+        <!-- Start Research Button -->
+        <button id="start-btn" disabled
+                onclick="startResearch()"
+                class="mt-4 w-full h-11 rounded-xl bg-accent text-white text-sm font-semibold
+                       disabled:opacity-30 disabled:cursor-not-allowed
+                       hover:bg-blue-600 active:scale-[0.98]
+                       transition-all duration-200 flex items-center justify-center gap-2">
+          <span id="btn-text">Start Research</span>
+          <div id="btn-spinner" class="spinner hidden"></div>
+        </button>
+
+        <!-- Processing Status -->
+        <div id="status-area" class="hidden mt-3 p-3 rounded-xl bg-accent/5 border border-accent/10">
+          <div class="flex items-center gap-2">
+            <div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>
+            <span id="status-text" class="text-xs text-accent font-medium">Orchestrator is planning research...</span>
+          </div>
+        </div>
+
+        <!-- Error Display -->
+        <div id="error-area" class="hidden mt-3 p-3 rounded-xl bg-danger/10 border border-danger/20 text-sm text-red-400"></div>
+      </div>
+
+      <!-- Research Plan Card (hidden initially) -->
+      <div id="plan-card" class="hidden glass rounded-2xl overflow-hidden glow-hover transition-all duration-300 card-enter">
+        <button id="plan-toggle" onclick="togglePlan()"
+                class="w-full px-6 py-4 flex items-center justify-between text-sm font-semibold text-slate-300 hover:text-white transition-colors">
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+            </svg>
+            Research Plan
+            <span id="plan-count" class="ml-1 text-[10px] text-slate-500 font-mono"></span>
+          </span>
+          <svg id="plan-chevron" class="w-4 h-4 text-slate-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div id="plan-content" class="collapsible-content open px-6 pb-5">
+          <div id="plan-list" class="space-y-3"></div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT PANEL -->
+    <section class="flex-1 min-w-0">
+
+      <!-- Empty State -->
+      <div id="empty-state" class="flex flex-col items-center justify-center h-full text-center py-20">
+        <div class="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-6">
+          <svg class="w-10 h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-500 mb-2">No research yet</h3>
+        <p class="text-sm text-slate-600 max-w-sm">Describe your business idea and hit "Start Research" to run the orchestrator-worker pipeline.</p>
+      </div>
+
+      <!-- Result Cards Container -->
+      <div id="results-container" class="hidden space-y-5"></div>
+
+    </section>
+  </main>
+
+<script>
+// =====================================================================
+// STATE
+// =====================================================================
+var FLOW_STEPS = [
+  { id: 'orchestrator', label: 'Orchestrator', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
+  { id: 'workers',      label: 'Workers',      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+  { id: 'synthesizer',  label: 'Synthesizer',   icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+];
+
+var lastReport = null;
+var lastIdea = null;
+
+// =====================================================================
+// PIPELINE BAR
+// =====================================================================
+function renderPipelineBar() {
+  var bar = document.getElementById('pipeline-bar');
+  bar.innerHTML = '';
+  FLOW_STEPS.forEach(function(step, i) {
+    var node = document.createElement('div');
+    node.className = 'flex flex-col items-center gap-2 relative z-10';
+    node.id = 'node-' + step.id;
+
+    var extraLabel = '';
+    if (step.id === 'workers') {
+      extraLabel = '<span class="text-[9px] text-slate-600 font-mono">(parallel)</span>';
+    }
+
+    node.innerHTML =
+      '<div class="node-circle w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center transition-all duration-500">' +
+        '<svg class="w-5 h-5 text-slate-600 transition-colors duration-500 node-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="' + step.icon + '"/>' +
+        '</svg>' +
+      '</div>' +
+      '<span class="node-label text-[11px] font-medium text-slate-600 transition-colors duration-500 whitespace-nowrap flex flex-col items-center">' +
+        step.label + extraLabel +
+      '</span>';
+    bar.appendChild(node);
+
+    if (i < FLOW_STEPS.length - 1) {
+      var line = document.createElement('div');
+      line.className = 'line-idle flex-1 h-[2px] rounded-full self-center mb-6 transition-all duration-500';
+      line.id = 'line-' + i;
+      bar.appendChild(line);
+    }
+  });
+}
+
+function setFlowState(stepIndex, state) {
+  var step = FLOW_STEPS[stepIndex];
+  var node = document.getElementById('node-' + step.id);
+  if (!node) return;
+  var circle = node.querySelector('.node-circle');
+  var icon = node.querySelector('.node-icon');
+  var labelEl = node.querySelector('.node-label');
+
+  // Reset circle classes
+  circle.className = 'node-circle w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500';
+
+  if (state === 'active') {
+    circle.classList.add('node-active', 'bg-accent/20', 'border', 'border-accent');
+    icon.className = 'w-5 h-5 text-accent transition-colors duration-500 node-icon';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="' + step.icon + '"/>';
+    updateLabelColor(labelEl, 'text-accent');
+  } else if (state === 'done') {
+    circle.classList.add('bg-emerald-500/15', 'border', 'border-emerald-500/40');
+    icon.className = 'w-5 h-5 text-emerald-400 transition-colors duration-500 node-icon';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+    updateLabelColor(labelEl, 'text-emerald-400');
+  } else if (state === 'failed') {
+    circle.classList.add('bg-danger/15', 'border', 'border-danger/40');
+    icon.className = 'w-5 h-5 text-red-400 transition-colors duration-500 node-icon';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+    updateLabelColor(labelEl, 'text-red-400');
+  } else {
+    circle.classList.add('bg-white/[0.05]', 'border', 'border-white/10');
+    icon.className = 'w-5 h-5 text-slate-600 transition-colors duration-500 node-icon';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="' + step.icon + '"/>';
+    updateLabelColor(labelEl, 'text-slate-600');
+  }
+
+  // Lines
+  if (stepIndex > 0) {
+    var line = document.getElementById('line-' + (stepIndex - 1));
+    if (line) {
+      line.classList.remove('line-idle', 'line-active', 'line-done');
+      if (state === 'active') line.classList.add('line-active');
+      else if (state === 'done') line.classList.add('line-done');
+      else line.classList.add('line-idle');
+    }
+  }
+}
+
+function updateLabelColor(labelEl, colorClass) {
+  labelEl.classList.remove('text-slate-600', 'text-accent', 'text-emerald-400', 'text-red-400');
+  labelEl.classList.add(colorClass);
+}
+
+function resetFlow() {
+  FLOW_STEPS.forEach(function(_, i) { setFlowState(i, 'idle'); });
+}
+
+// =====================================================================
+// MARKDOWN RENDERER
+// =====================================================================
+function renderMarkdown(md) {
+  if (!md) return '';
+  var html = md;
+
+  // Sanitize raw HTML tags
+  html = html.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Headings (order matters: ### before ## before #)
+  html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+  html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  // Italic (single *)
+  html = html.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+
+  // Links — need to restore angle brackets for href
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, text, url) {
+    url = url.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+  });
+
+  // Horizontal rules
+  html = html.replace(/^---$/gm, '<hr>');
+
+  // Lists — group consecutive - items into <ul>
+  html = html.replace(/(^- .+\n?)+/gm, function(match) {
+    var items = match.trim().split('\n').map(function(line) {
+      return '<li>' + line.replace(/^- /, '') + '</li>';
+    }).join('');
+    return '<ul>' + items + '</ul>';
+  });
+
+  // Line breaks for remaining plain lines
+  var lines = html.split('\n');
+  var result = [];
+  for (var i = 0; i < lines.length; i++) {
+    var trimmed = lines[i].trim();
+    if (!trimmed) { result.push(''); continue; }
+    if (/^<(h[2-4]|ul|li|hr|\/|a |p )/.test(trimmed)) { result.push(lines[i]); continue; }
+    result.push('<p>' + trimmed + '</p>');
+  }
+  html = result.join('\n');
+
+  return html;
+}
+
+// =====================================================================
+// SANITIZE
+// =====================================================================
+function sanitize(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// =====================================================================
+// PLAN CARD
+// =====================================================================
+function togglePlan() {
+  var content = document.getElementById('plan-content');
+  var chevron = document.getElementById('plan-chevron');
+  content.classList.toggle('open');
+  chevron.style.transform = content.classList.contains('open') ? '' : 'rotate(-90deg)';
+}
+
+function showPlan(plan) {
+  var card = document.getElementById('plan-card');
+  var list = document.getElementById('plan-list');
+  var count = document.getElementById('plan-count');
+
+  if (!plan || !plan.length) return;
+
+  count.textContent = '(' + plan.length + ' sections)';
+  list.innerHTML = '';
+
+  plan.forEach(function(section, i) {
+    var el = document.createElement('div');
+    el.className = 'p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] fade-in';
+    el.style.animationDelay = (i * 80) + 'ms';
+
+    var queries = section.search_queries || section.queries || [];
+    var queriesHtml = queries.length
+      ? '<div class="mt-2 flex flex-wrap gap-1.5">' +
+        queries.map(function(q) {
+          return '<span class="inline-block px-2 py-0.5 rounded-md bg-accent/[0.08] border border-accent/10 text-[10px] text-accent/70 font-mono">' + sanitize(q) + '</span>';
+        }).join('') + '</div>'
+      : '';
+
+    el.innerHTML =
+      '<div class="flex items-start gap-2">' +
+        '<span class="flex-shrink-0 w-5 h-5 rounded-md bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-[10px] font-bold text-violet-400 mt-0.5">' + (i + 1) + '</span>' +
+        '<div class="min-w-0">' +
+          '<p class="text-xs font-semibold text-slate-300">' + sanitize(section.title || section.name || 'Section ' + (i + 1)) + '</p>' +
+          queriesHtml +
+        '</div>' +
+      '</div>';
+    list.appendChild(el);
+  });
+
+  card.classList.remove('hidden');
+}
+
+// =====================================================================
+// RESULTS RENDERING
+// =====================================================================
+function showSectionResult(section, index) {
+  var container = document.getElementById('results-container');
+
+  var card = document.createElement('div');
+  card.className = 'glass rounded-2xl p-6 glow-hover transition-all duration-300 card-enter';
+  card.style.animationDelay = (index * 120) + 'ms';
+
+  var sourcesHtml = '';
+  if (section.sources && section.sources.length) {
+    var sourceItems = section.sources.map(function(src) {
+      if (typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'))) {
+        var domain = '';
+        try { domain = new URL(src).hostname.replace('www.', ''); } catch(e) { domain = src; }
+        return '<a href="' + src + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[11px] text-slate-500 hover:text-accent hover:border-accent/20 transition-colors">' +
+          '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>' +
+          domain + '</a>';
+      }
+      return '<span class="inline-block px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[11px] text-slate-500">' + sanitize(String(src)) + '</span>';
+    }).join('');
+
+    sourcesHtml =
+      '<div class="mt-4 pt-3 border-t border-white/[0.06]">' +
+        '<p class="text-[10px] uppercase tracking-wider text-slate-600 font-semibold mb-2">Sources</p>' +
+        '<div class="flex flex-wrap gap-2">' + sourceItems + '</div>' +
+      '</div>';
+  }
+
+  card.innerHTML =
+    '<div class="flex items-center gap-3 mb-4">' +
+      '<div class="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-xs font-bold text-accent">' + (index + 1) + '</div>' +
+      '<h3 class="text-sm font-semibold text-slate-200">' + sanitize(section.title || section.name || 'Section ' + (index + 1)) + '</h3>' +
+    '</div>' +
+    '<div class="md-content">' + renderMarkdown(section.content || section.text || '') + '</div>' +
+    sourcesHtml;
+
+  container.appendChild(card);
+}
+
+function showFinalReport(report, idea) {
+  lastReport = report;
+  lastIdea = idea;
+
+  var container = document.getElementById('results-container');
+
+  var card = document.createElement('div');
+  card.className = 'glass rounded-2xl overflow-hidden glow-hover transition-all duration-300 card-enter';
+  card.style.borderColor = 'rgba(139,92,246,0.2)';
+
+  card.innerHTML =
+    '<div class="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">' +
+      '<div class="flex items-center gap-3">' +
+        '<div class="w-9 h-9 rounded-lg bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">' +
+          '<svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>' +
+          '</svg>' +
+        '</div>' +
+        '<div>' +
+          '<h3 class="text-sm font-bold text-slate-100">Final Research Report</h3>' +
+          '<p class="text-[11px] text-slate-500">Synthesized from all worker sections</p>' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="downloadReport()" class="h-9 px-4 rounded-lg bg-violet-600/20 border border-violet-500/20 text-violet-400 text-xs font-semibold hover:bg-violet-600/30 transition-all duration-200 flex items-center gap-2">' +
+        '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>' +
+        '</svg>' +
+        'Download Report PDF' +
+      '</button>' +
+    '</div>' +
+    '<div class="px-6 py-5">' +
+      '<div class="md-content">' + renderMarkdown(report) + '</div>' +
+    '</div>';
+
+  container.appendChild(card);
+}
+
+// =====================================================================
+// API CALLS
+// =====================================================================
+function delay(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms); });
+}
+
+async function startResearch() {
+  var ideaInput = document.getElementById('idea-input');
+  var idea = ideaInput.value.trim();
+  if (!idea) {
+    showError('Please describe a business idea before starting research.');
+    return;
+  }
+
+  // Reset UI
+  hideError();
+  resetFlow();
+  document.getElementById('plan-card').classList.add('hidden');
+  document.getElementById('results-container').innerHTML = '';
+  document.getElementById('results-container').classList.add('hidden');
+  document.getElementById('empty-state').classList.add('hidden');
+
+  // Disable button
+  var btn = document.getElementById('start-btn');
+  var btnText = document.getElementById('btn-text');
+  var btnSpinner = document.getElementById('btn-spinner');
+  btn.disabled = true;
+  btnText.textContent = 'Researching...';
+  btnSpinner.classList.remove('hidden');
+
+  // Show status
+  showStatus('Orchestrator is planning research...');
+
+  // Step 1: Orchestrator active
+  setFlowState(0, 'active');
+
+  try {
+    var response = await fetch('/research/api/research', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idea: idea }),
+    });
+
+    var data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Research failed.');
+    }
+
+    // Progressive rendering with simulated delays
+
+    // Step 1 done: Orchestrator completed
+    await delay(400);
+    setFlowState(0, 'done');
+    showStatus('Research plan created. Workers starting...');
+
+    // Show plan
+    if (data.plan) {
+      showPlan(data.plan);
+    }
+
+    // Step 2: Workers active
+    await delay(500);
+    setFlowState(1, 'active');
+    showStatus('Workers researching in parallel...');
+
+    // Show results container
+    document.getElementById('results-container').classList.remove('hidden');
+
+    // Progressively show each section
+    var sections = data.sections || [];
+    for (var i = 0; i < sections.length; i++) {
+      await delay(600);
+      showSectionResult(sections[i], i);
+      showStatus('Worker ' + (i + 1) + ' of ' + sections.length + ' completed...');
+    }
+
+    // Workers done
+    await delay(400);
+    setFlowState(1, 'done');
+
+    // Step 3: Synthesizer active
+    setFlowState(2, 'active');
+    showStatus('Synthesizer compiling final report...');
+
+    await delay(800);
+
+    // Show final report
+    if (data.final_report) {
+      showFinalReport(data.final_report, idea);
+    }
+
+    // All done
+    setFlowState(2, 'done');
+    hideStatus();
+
+  } catch (err) {
+    // Mark currently active steps as failed
+    FLOW_STEPS.forEach(function(_, idx) {
+      var n = document.getElementById('node-' + FLOW_STEPS[idx].id);
+      if (n && n.querySelector('.node-active')) {
+        setFlowState(idx, 'failed');
+      }
+    });
+    showError(err.message || 'An unexpected error occurred.');
+    hideStatus();
+  } finally {
+    btn.disabled = !ideaInput.value.trim();
+    btnText.textContent = 'Start Research';
+    btnSpinner.classList.add('hidden');
+  }
+}
+
+async function downloadReport() {
+  if (!lastReport) return;
+
+  try {
+    var response = await fetch('/research/api/download-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report: lastReport, idea: lastIdea || '' }),
+    });
+
+    if (!response.ok) throw new Error('Failed to generate PDF');
+
+    var blob = await response.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'market_research_report.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showError('Failed to download report: ' + err.message);
+  }
+}
+
+// =====================================================================
+// UI HELPERS
+// =====================================================================
+function showError(msg) {
+  var el = document.getElementById('error-area');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function hideError() {
+  document.getElementById('error-area').classList.add('hidden');
+}
+
+function showStatus(msg) {
+  var area = document.getElementById('status-area');
+  var text = document.getElementById('status-text');
+  text.textContent = msg;
+  area.classList.remove('hidden');
+}
+
+function hideStatus() {
+  document.getElementById('status-area').classList.add('hidden');
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+renderPipelineBar();
+
+// Enable button only when there is input
+document.getElementById('idea-input').addEventListener('input', function() {
+  var btn = document.getElementById('start-btn');
+  var isProcessing = document.getElementById('btn-spinner').classList.contains('hidden') === false;
+  if (!isProcessing) {
+    btn.disabled = !this.value.trim();
+  }
+});
+
+// Production console cleanup
+if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+  console.log = function() {};
+  console.warn = function() {};
+  console.debug = function() {};
+}
+</script>
+
+</body>
+</html>

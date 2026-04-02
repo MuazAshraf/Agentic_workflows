@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invoice Processing Pipeline — Prompt Chaining Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              700: '#1a1f2e',
+              800: '#131825',
+              900: '#0c1018',
+              950: '#080b12',
+            },
+            accent: {
+              DEFAULT: '#3b82f6',
+              muted: '#1d4ed8',
+              glow: 'rgba(59,130,246,0.15)',
+            },
+            success: '#10b981',
+            danger: '#ef4444',
+            warn: '#f59e0b',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+    /* Glassmorphism card */
+    .glass {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .glass-hover:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    /* Pipeline node pulse */
+    @keyframes nodePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
+    }
+    .node-active { animation: nodePulse 1.8s ease-in-out infinite; }
+
+    /* Connecting line animation */
+    @keyframes lineFlow {
+      0% { background-position: 0% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .line-active {
+      background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.6) 50%, rgba(59,130,246,0.1) 100%);
+      background-size: 200% 100%;
+      animation: lineFlow 1.5s linear infinite;
+    }
+    .line-done { background: rgba(16,185,129,0.4); }
+    .line-idle { background: rgba(255,255,255,0.06); }
+
+    /* Card entrance */
+    @keyframes slideUp {
+      0% { opacity: 0; transform: translateY(24px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter { animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* Drag zone */
+    .drop-zone { transition: all 0.25s ease; }
+    .drop-zone.drag-over {
+      border-color: rgba(59,130,246,0.6);
+      background: rgba(59,130,246,0.06);
+    }
+
+    /* Confidence bar */
+    .conf-bar-inner { transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+
+    /* Subtle glow on hover */
+    .glow-hover:hover { box-shadow: 0 0 30px rgba(59,130,246,0.08); }
+
+    /* JSON syntax */
+    .json-key { color: #93c5fd; }
+    .json-string { color: #86efac; }
+    .json-number { color: #fbbf24; }
+    .json-bool { color: #c084fc; }
+    .json-null { color: #6b7280; }
+
+    /* Fade in */
+    @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+
+    /* Badge pulse for success/fail */
+    @keyframes badgePop {
+      0% { transform: scale(0.7); opacity: 0; }
+      60% { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .badge-pop { animation: badgePop 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+  </style>
+</head>
+<body class="bg-surface-950 text-white min-h-screen antialiased">
+
+  <!-- =============== TOP NAV =============== -->
+  <nav class="sticky top-0 z-50 glass border-b border-white/5">
+    <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/"
+         class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors duration-200 group">
+        <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        All Agents
+      </a>
+      <div class="text-center">
+        <h1 class="text-base font-semibold tracking-tight">Invoice Processing Pipeline</h1>
+        <p class="text-[11px] text-slate-500 font-medium tracking-wide uppercase">Prompt Chaining Agent</p>
+      </div>
+      <div class="w-24"></div>
+    </div>
+  </nav>
+
+  <!-- =============== PIPELINE VISUALIZATION =============== -->
+  <section class="max-w-[1600px] mx-auto px-6 pt-8 pb-4">
+    <div class="glass rounded-2xl px-8 py-6">
+      <div class="flex items-center justify-between" id="pipeline-bar">
+        <!-- Nodes + lines generated by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== MAIN CONTENT =============== -->
+  <main class="max-w-[1600px] mx-auto px-6 pb-12 flex gap-6" style="min-height: calc(100vh - 200px);">
+
+    <!-- LEFT PANEL -->
+    <aside class="w-[380px] flex-shrink-0 flex flex-col gap-5">
+
+      <!-- Tab Switcher -->
+      <div class="glass rounded-2xl p-1.5 flex gap-1">
+        <button id="tab-invoice" onclick="switchTab('invoice')"
+                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 bg-accent/15 text-accent">
+          Process Invoice
+        </button>
+        <button id="tab-po" onclick="switchTab('po')"
+                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-300">
+          Create PO
+        </button>
+      </div>
+
+      <!-- ====== CREATE PO CARD (hidden by default) ====== -->
+      <div id="panel-po" class="hidden glass rounded-2xl p-6 glow-hover transition-all duration-300">
+        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Create Purchase Order
+        </h2>
+
+        <div class="space-y-3">
+          <div>
+            <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Vendor Name *</label>
+            <input id="po-vendor" type="text" placeholder="e.g. TechSolutions Pvt Ltd"
+                   class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors" />
+          </div>
+          <div>
+            <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Items / Work Description *</label>
+            <textarea id="po-items" rows="3" placeholder="e.g. AI Chatbot Development, RAG Pipeline Integration"
+                      class="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors resize-none"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Amount (USD) *</label>
+              <input id="po-amount" type="number" step="0.01" min="0" placeholder="9670.00"
+                     class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors" />
+            </div>
+            <div>
+              <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Deadline</label>
+              <input id="po-deadline" type="date"
+                     class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 focus:border-accent/50 focus:outline-none transition-colors" />
+            </div>
+          </div>
+          <div>
+            <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Department</label>
+            <input id="po-dept" type="text" placeholder="e.g. IT, Finance, Operations"
+                   class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors" />
+          </div>
+        </div>
+
+        <button id="create-po-btn" onclick="createPO()"
+                class="mt-4 w-full h-11 rounded-xl bg-emerald-600 text-white text-sm font-semibold
+                       hover:bg-emerald-700 active:scale-[0.98]
+                       transition-all duration-200 flex items-center justify-center gap-2">
+          <span id="po-btn-text">Create Purchase Order</span>
+          <div id="po-btn-spinner" class="spinner hidden"></div>
+        </button>
+
+        <!-- PO Success -->
+        <div id="po-success" class="hidden mt-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-sm font-semibold text-emerald-400">PO Created Successfully</span>
+          </div>
+          <p class="text-xs text-slate-400" id="po-success-detail"></p>
+          <button id="download-po-btn" onclick="downloadPOPdf()"
+                  class="mt-3 w-full h-9 rounded-lg bg-emerald-600/20 border border-emerald-500/20 text-emerald-400 text-xs font-semibold
+                         hover:bg-emerald-600/30 transition-all duration-200 flex items-center justify-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Download PO PDF
+          </button>
+        </div>
+
+        <!-- PO Error -->
+        <div id="po-error" class="hidden mt-3 p-3 rounded-xl bg-danger/10 border border-danger/20 text-sm text-red-400"></div>
+      </div>
+
+      <!-- ====== UPLOAD INVOICE CARD ====== -->
+      <div id="panel-invoice" class="glass rounded-2xl p-6 glow-hover transition-all duration-300">
+        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Upload Invoice
+        </h2>
+
+        <!-- Drop Zone -->
+        <div id="drop-zone"
+             class="drop-zone relative border-2 border-dashed border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-white/20 transition-all duration-200">
+          <input type="file" id="file-input" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer" />
+          <div id="drop-placeholder" class="flex flex-col items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
+              <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm text-slate-400">Drop your PDF invoice here</p>
+              <p class="text-xs text-slate-600 mt-1">or click to browse</p>
+            </div>
+          </div>
+          <div id="file-info" class="hidden flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <div class="text-left overflow-hidden">
+              <p id="file-name" class="text-sm font-medium text-slate-200 truncate"></p>
+              <p id="file-size" class="text-xs text-slate-500"></p>
+            </div>
+            <button id="clear-file" class="ml-auto p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Process Button -->
+        <button id="process-btn"
+                disabled
+                class="mt-4 w-full h-11 rounded-xl bg-accent text-white text-sm font-semibold
+                       disabled:opacity-30 disabled:cursor-not-allowed
+                       hover:bg-blue-600 active:scale-[0.98]
+                       transition-all duration-200 flex items-center justify-center gap-2">
+          <span id="btn-text">Process Invoice</span>
+          <div id="btn-spinner" class="spinner hidden"></div>
+        </button>
+
+        <!-- Error Display -->
+        <div id="error-area" class="hidden mt-3 p-3 rounded-xl bg-danger/10 border border-danger/20 text-sm text-red-400"></div>
+      </div>
+
+      <!-- PO Database Card -->
+      <div class="glass rounded-2xl overflow-hidden glow-hover transition-all duration-300">
+        <button id="po-toggle"
+                class="w-full px-6 py-4 flex items-center justify-between text-sm font-semibold text-slate-300 hover:text-white transition-colors">
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            PO Database
+          </span>
+          <svg id="po-chevron" class="w-4 h-4 text-slate-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="po-content" class="hidden px-6 pb-5">
+          <div id="po-table" class="space-y-2"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT PANEL (RESULTS) -->
+    <section class="flex-1 min-w-0">
+      <!-- Empty State -->
+      <div id="empty-state" class="flex flex-col items-center justify-center h-full text-center py-20">
+        <div class="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-6">
+          <svg class="w-10 h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-500 mb-2">No results yet</h3>
+        <p class="text-sm text-slate-600 max-w-sm">Upload a PDF invoice and hit "Process Invoice" to run the 5-step prompt chaining pipeline.</p>
+      </div>
+
+      <!-- Result Cards Container -->
+      <div id="results-container" class="hidden space-y-5">
+      </div>
+    </section>
+  </main>
+
+<script>
+// =====================================================================
+// STATE
+// =====================================================================
+const STEPS = [
+  { id: 'extract',         label: 'Extract',         icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { id: 'duplicate_check', label: 'Duplicate Check',  icon: 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z' },
+  { id: 'validation',      label: 'Validate',         icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { id: 'po_match',        label: 'PO Match',         icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
+  { id: 'payment_entry',   label: 'Payment Entry',    icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
+];
+
+let selectedFile = null;
+let poData = null;
+let lastPipelineResult = null;
+
+// =====================================================================
+// PIPELINE BAR
+// =====================================================================
+function renderPipelineBar() {
+  const bar = document.getElementById('pipeline-bar');
+  bar.innerHTML = '';
+  STEPS.forEach((step, i) => {
+    // Node
+    const node = document.createElement('div');
+    node.className = 'flex flex-col items-center gap-2 relative z-10';
+    node.id = `node-${step.id}`;
+    node.innerHTML = `
+      <div class="node-circle w-11 h-11 rounded-full bg-white/[0.05] border border-white/10
+                  flex items-center justify-center transition-all duration-500">
+        <svg class="w-5 h-5 text-slate-600 transition-colors duration-500 node-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="${step.icon}"/>
+        </svg>
+      </div>
+      <span class="node-label text-[11px] font-medium text-slate-600 transition-colors duration-500 whitespace-nowrap">${step.label}</span>
+    `;
+    bar.appendChild(node);
+
+    // Connector line
+    if (i < STEPS.length - 1) {
+      const line = document.createElement('div');
+      line.className = 'line-idle flex-1 h-[2px] rounded-full self-center mb-6 transition-all duration-500';
+      line.id = `line-${i}`;
+      bar.appendChild(line);
+    }
+  });
+}
+
+function setPipelineState(stepIndex, state) {
+  // state: 'idle' | 'active' | 'done' | 'failed'
+  const step = STEPS[stepIndex];
+  const node = document.getElementById(`node-${step.id}`);
+  if (!node) return;
+  const circle = node.querySelector('.node-circle');
+  const icon = node.querySelector('.node-icon');
+  const label = node.querySelector('.node-label');
+
+  // Reset
+  circle.classList.remove('node-active', 'bg-accent', 'bg-success', 'bg-danger', 'border-accent', 'border-success', 'border-danger', 'bg-white/[0.05]');
+  circle.classList.add('bg-white/[0.05]');
+
+  if (state === 'active') {
+    circle.classList.remove('bg-white/[0.05]');
+    circle.classList.add('node-active', 'bg-accent/20', 'border-accent');
+    icon.className = 'w-5 h-5 text-accent transition-colors duration-500 node-icon';
+    label.className = 'node-label text-[11px] font-medium text-accent transition-colors duration-500 whitespace-nowrap';
+  } else if (state === 'done') {
+    circle.classList.remove('bg-white/[0.05]', 'node-active');
+    circle.classList.add('bg-emerald-500/15', 'border-emerald-500/40');
+    icon.className = 'w-5 h-5 text-emerald-400 transition-colors duration-500 node-icon';
+    label.className = 'node-label text-[11px] font-medium text-emerald-400 transition-colors duration-500 whitespace-nowrap';
+    // Check icon
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+  } else if (state === 'failed') {
+    circle.classList.remove('bg-white/[0.05]', 'node-active');
+    circle.classList.add('bg-danger/15', 'border-danger/40');
+    icon.className = 'w-5 h-5 text-danger transition-colors duration-500 node-icon';
+    label.className = 'node-label text-[11px] font-medium text-danger transition-colors duration-500 whitespace-nowrap';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+  } else {
+    icon.className = 'w-5 h-5 text-slate-600 transition-colors duration-500 node-icon';
+    label.className = 'node-label text-[11px] font-medium text-slate-600 transition-colors duration-500 whitespace-nowrap';
+    icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="${step.icon}"/>`;
+  }
+
+  // Lines
+  if (stepIndex > 0) {
+    const line = document.getElementById(`line-${stepIndex - 1}`);
+    if (line) {
+      line.classList.remove('line-idle', 'line-active', 'line-done');
+      if (state === 'active') line.classList.add('line-active');
+      else if (state === 'done') line.classList.add('line-done');
+      else line.classList.add('line-idle');
+    }
+  }
+}
+
+function resetPipeline() {
+  STEPS.forEach((_, i) => setPipelineState(i, 'idle'));
+}
+
+// =====================================================================
+// FILE HANDLING
+// =====================================================================
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const dropPlaceholder = document.getElementById('drop-placeholder');
+const fileInfo = document.getElementById('file-info');
+const fileNameEl = document.getElementById('file-name');
+const fileSizeEl = document.getElementById('file-size');
+const clearBtn = document.getElementById('clear-file');
+const processBtn = document.getElementById('process-btn');
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function setFile(file) {
+  if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+    showError('Please select a PDF file.');
+    return;
+  }
+  selectedFile = file;
+  fileNameEl.textContent = file.name;
+  fileSizeEl.textContent = formatSize(file.size);
+  dropPlaceholder.classList.add('hidden');
+  fileInfo.classList.remove('hidden');
+  fileInfo.classList.add('flex');
+  processBtn.disabled = false;
+  hideError();
+}
+
+function clearFile() {
+  selectedFile = null;
+  fileInput.value = '';
+  dropPlaceholder.classList.remove('hidden');
+  fileInfo.classList.add('hidden');
+  fileInfo.classList.remove('flex');
+  processBtn.disabled = true;
+}
+
+fileInput.addEventListener('change', (e) => { if (e.target.files[0]) setFile(e.target.files[0]); });
+clearBtn.addEventListener('click', (e) => { e.stopPropagation(); clearFile(); });
+
+// Drag & drop
+['dragenter', 'dragover'].forEach(evt => {
+  dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+});
+['dragleave', 'drop'].forEach(evt => {
+  dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); });
+});
+dropZone.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+
+// =====================================================================
+// ERROR / STATUS
+// =====================================================================
+const errorArea = document.getElementById('error-area');
+function showError(msg) { errorArea.textContent = msg; errorArea.classList.remove('hidden'); }
+function hideError() { errorArea.classList.add('hidden'); }
+
+// =====================================================================
+// PO DATABASE
+// =====================================================================
+const poToggle = document.getElementById('po-toggle');
+const poContent = document.getElementById('po-content');
+const poChevron = document.getElementById('po-chevron');
+
+poToggle.addEventListener('click', () => {
+  const open = !poContent.classList.contains('hidden');
+  poContent.classList.toggle('hidden');
+  poChevron.style.transform = open ? '' : 'rotate(180deg)';
+});
+
+async function loadPODatabase() {
+  try {
+    const res = await fetch('/invoice/api/po-database');
+    poData = await res.json();
+    renderPOTable(poData);
+  } catch {
+    document.getElementById('po-table').innerHTML = '<p class="text-xs text-slate-600">Failed to load PO data.</p>';
+  }
+}
+
+function renderPOTable(data) {
+  const container = document.getElementById('po-table');
+  container.innerHTML = '';
+  Object.entries(data).forEach(([po, info]) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between py-2.5 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04]';
+    row.innerHTML = `
+      <div>
+        <span class="text-xs font-mono font-medium text-emerald-400">${po}</span>
+        <p class="text-[11px] text-slate-500 mt-0.5">${info.vendor} &middot; ${info.items}</p>
+      </div>
+      <div class="text-right">
+        <span class="text-xs font-semibold text-slate-300">$${Number(info.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+        <p class="text-[10px] text-slate-600 uppercase tracking-wide mt-0.5">${info.status}</p>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// =====================================================================
+// JSON SYNTAX HIGHLIGHTING
+// =====================================================================
+function highlightJSON(obj, indent) {
+  indent = indent || 0;
+  const pad = '  '.repeat(indent);
+  const pad1 = '  '.repeat(indent + 1);
+
+  if (obj === null) return '<span class="json-null">null</span>';
+  if (typeof obj === 'boolean') return `<span class="json-bool">${obj}</span>`;
+  if (typeof obj === 'number') return `<span class="json-number">${obj}</span>`;
+  if (typeof obj === 'string') return `<span class="json-string">"${escapeHtml(obj)}"</span>`;
+
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    const items = obj.map(item => pad1 + highlightJSON(item, indent + 1));
+    return '[\n' + items.join(',\n') + '\n' + pad + ']';
+  }
+
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return '{}';
+  const entries = keys.map(k => {
+    return pad1 + '<span class="json-key">"' + escapeHtml(k) + '"</span>: ' + highlightJSON(obj[k], indent + 1);
+  });
+  return '{\n' + entries.join(',\n') + '\n' + pad + '}';
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// =====================================================================
+// RESULT CARD RENDERERS
+// =====================================================================
+function makeCard(title, iconPath, colorClass, content, stepId) {
+  const card = document.createElement('div');
+  card.className = 'glass rounded-2xl overflow-hidden card-enter glow-hover transition-shadow duration-300';
+  card.id = `result-${stepId}`;
+  card.style.opacity = '0';
+  card.innerHTML = `
+    <div class="px-6 py-4 border-b border-white/[0.04] flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"/>
+        </svg>
+      </div>
+      <h3 class="text-sm font-semibold text-slate-200">${title}</h3>
+    </div>
+    <div class="px-6 py-5">${content}</div>
+  `;
+  return card;
+}
+
+function badgeHtml(label, success) {
+  const bg = success ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : 'bg-red-500/15 text-red-400 border-red-500/20';
+  return `<span class="badge-pop inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${bg}">
+    <span class="w-1.5 h-1.5 rounded-full ${success ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+    ${label}
+  </span>`;
+}
+
+function confidenceBar(value, label) {
+  const pct = Math.round(value * 100);
+  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500';
+  return `
+    <div class="mt-3">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] text-slate-500 font-medium">${label}</span>
+        <span class="text-[11px] font-semibold text-slate-300">${pct}%</span>
+      </div>
+      <div class="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div class="conf-bar-inner h-full rounded-full ${color}" style="width: 0%;" data-target="${pct}"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderExtract(data) {
+  const json = highlightJSON(data);
+  return makeCard('Extracted Invoice Data', STEPS[0].icon, 'bg-blue-500/15 text-blue-400',
+    `<pre class="text-xs font-mono leading-relaxed overflow-x-auto whitespace-pre">${json}</pre>`, 'extract');
+}
+
+function renderDuplicateCheck(data) {
+  const pass = !data.is_duplicate;
+  const content = `
+    <div class="flex items-center gap-4">
+      ${badgeHtml(pass ? 'No Duplicate Found' : 'Duplicate Detected', pass)}
+    </div>
+    <p class="mt-3 text-sm text-slate-400">${escapeHtml(data.message || '')}</p>
+  `;
+  return makeCard('Duplicate Check', STEPS[1].icon, pass ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400', content, 'duplicate_check');
+}
+
+function renderValidation(data) {
+  const valid = data.is_valid;
+  let issuesHtml = '';
+  if (data.issues && data.issues.length > 0) {
+    issuesHtml = `<div class="mt-4 space-y-1.5">${data.issues.map(i =>
+      `<div class="flex items-start gap-2 text-sm text-amber-400">
+        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        <span>${escapeHtml(i)}</span>
+      </div>`).join('')}</div>`;
+  }
+  const content = `
+    ${badgeHtml(valid ? 'Valid' : 'Invalid', valid)}
+    ${data.confidence !== undefined ? confidenceBar(data.confidence, 'Confidence') : ''}
+    ${issuesHtml}
+  `;
+  return makeCard('Validation', STEPS[2].icon, valid ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400', content, 'validation');
+}
+
+function renderPOMatch(data) {
+  const matched = data.matched;
+  let discrepHtml = '';
+  if (data.discrepancies && data.discrepancies.length > 0) {
+    discrepHtml = `<div class="mt-4 space-y-1.5">
+      <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-2">Discrepancies</p>
+      ${data.discrepancies.map(d =>
+        `<div class="flex items-start gap-2 text-sm text-amber-400">
+          <span class="w-1 h-1 rounded-full bg-amber-400 mt-2 flex-shrink-0"></span>
+          <span>${escapeHtml(d)}</span>
+        </div>`).join('')}</div>`;
+  }
+  const content = `
+    <div class="flex items-center gap-3 flex-wrap">
+      ${badgeHtml(matched ? 'Matched' : 'No Match', matched)}
+      ${data.po_number ? `<span class="text-xs font-mono text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded-lg">${escapeHtml(data.po_number)}</span>` : ''}
+    </div>
+    ${data.match_confidence !== undefined ? confidenceBar(data.match_confidence, 'Match Confidence') : ''}
+    ${data.reasoning ? `<p class="mt-3 text-sm text-slate-400 leading-relaxed">${escapeHtml(data.reasoning)}</p>` : ''}
+    ${discrepHtml}
+  `;
+  return makeCard('PO Match', STEPS[3].icon, matched ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400', content, 'po_match');
+}
+
+function renderPaymentEntry(data) {
+  const fields = [
+    { label: 'Entry ID', value: data.entry_id, mono: true },
+    { label: 'Vendor', value: data.vendor_name },
+    { label: 'Invoice #', value: data.invoice_number, mono: true },
+    { label: 'Amount', value: data.amount !== undefined ? `$${Number(data.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}` : 'N/A', highlight: true },
+    { label: 'Currency', value: data.currency || 'USD' },
+    { label: 'Due Date', value: data.due_date || 'N/A' },
+    { label: 'PO Number', value: data.po_number || 'N/A', mono: true },
+    { label: 'Payment Method', value: data.payment_method || 'N/A' },
+    { label: 'Status', value: data.status || data.payment_status || 'Scheduled' },
+  ];
+
+  const content = `
+    <div class="grid grid-cols-2 gap-4">
+      ${fields.filter(f => f.value && f.value !== 'N/A').map(f => `
+        <div>
+          <p class="text-[10px] font-medium text-slate-600 uppercase tracking-wider mb-1">${f.label}</p>
+          <p class="${f.mono ? 'font-mono' : ''} ${f.highlight ? 'text-emerald-400 text-lg font-bold' : 'text-slate-200'} text-sm font-medium">
+            ${escapeHtml(String(f.value))}
+          </p>
+        </div>
+      `).join('')}
+    </div>
+    <button onclick="downloadPaymentSlip()"
+            class="mt-5 w-full h-11 rounded-xl bg-violet-600 text-white text-sm font-semibold
+                   hover:bg-violet-700 active:scale-[0.98] transition-all duration-200
+                   flex items-center justify-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Download Payment Slip
+    </button>
+  `;
+  return makeCard('Payment Entry', STEPS[4].icon, 'bg-violet-500/15 text-violet-400', content, 'payment_entry');
+}
+
+// =====================================================================
+// ANIMATE CONFIDENCE BARS (after card is in DOM)
+// =====================================================================
+function animateConfBars(card) {
+  setTimeout(() => {
+    card.querySelectorAll('.conf-bar-inner').forEach(bar => {
+      bar.style.width = bar.dataset.target + '%';
+    });
+  }, 100);
+}
+
+// =====================================================================
+// PROCESS INVOICE
+// =====================================================================
+processBtn.addEventListener('click', processInvoice);
+
+async function processInvoice() {
+  if (!selectedFile) return;
+  hideError();
+
+  // UI: disable, show spinner
+  processBtn.disabled = true;
+  document.getElementById('btn-text').textContent = 'Processing...';
+  document.getElementById('btn-spinner').classList.remove('hidden');
+
+  // Show results area, hide empty state
+  document.getElementById('empty-state').classList.add('hidden');
+  const container = document.getElementById('results-container');
+  container.classList.remove('hidden');
+  container.innerHTML = '';
+
+  // Reset pipeline, then animate steps as "active" sequentially
+  resetPipeline();
+
+  // Animate pipeline nodes to active one by one
+  let animInterval;
+  let currentStep = 0;
+  setPipelineState(0, 'active');
+  animInterval = setInterval(() => {
+    if (currentStep < STEPS.length - 1) {
+      setPipelineState(currentStep, 'done');
+      currentStep++;
+      setPipelineState(currentStep, 'active');
+    } else {
+      clearInterval(animInterval);
+    }
+  }, 800);
+
+  try {
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    const res = await fetch('/invoice/api/process-invoice', { method: 'POST', body: formData });
+    const json = await res.json();
+    lastPipelineResult = json;
+
+    clearInterval(animInterval);
+
+    if (!res.ok || json.error) {
+      // Mark all as failed
+      STEPS.forEach((_, i) => setPipelineState(i, 'failed'));
+      showError(json.error || `Server error (${res.status})`);
+      return;
+    }
+
+    const hasData = (obj) => obj && Object.keys(obj).length > 0;
+
+    // Render cards sequentially with delay
+    const renderers = [
+      () => hasData(json.steps.extract) ? renderExtract(json.steps.extract) : null,
+      () => hasData(json.steps.duplicate_check) ? renderDuplicateCheck(json.steps.duplicate_check) : null,
+      () => hasData(json.steps.validation) ? renderValidation(json.steps.validation) : null,
+      () => hasData(json.steps.po_match) ? renderPOMatch(json.steps.po_match) : null,
+      () => hasData(json.steps.payment_entry) ? renderPaymentEntry(json.steps.payment_entry) : null,
+    ];
+
+    // Set pipeline node states based on which steps have data
+    const stepKeys = ['extract', 'duplicate_check', 'validation', 'po_match', 'payment_entry'];
+    let chainStopped = false;
+    stepKeys.forEach((key, i) => {
+      if (chainStopped) { setPipelineState(i, 'idle'); return; }
+      if (hasData(json.steps[key])) {
+        // Check if this step failed/stopped the chain
+        const d = json.steps[key];
+        if ((key === 'duplicate_check' && d.is_duplicate) || (key === 'validation' && !d.is_valid)) {
+          setPipelineState(i, 'failed');
+          chainStopped = true;
+        } else {
+          setPipelineState(i, 'done');
+        }
+      } else {
+        setPipelineState(i, 'idle');
+        chainStopped = true;
+      }
+    });
+
+    for (let i = 0; i < renderers.length; i++) {
+      const card = renderers[i]();
+      if (!card) continue;
+      container.appendChild(card);
+      // Trigger animation
+      await delay(120);
+      card.style.opacity = '1';
+      animateConfBars(card);
+      await delay(200);
+    }
+
+  } catch (err) {
+    clearInterval(animInterval);
+    STEPS.forEach((_, i) => setPipelineState(i, 'failed'));
+    showError('Network error: ' + err.message);
+  } finally {
+    processBtn.disabled = !selectedFile;
+    document.getElementById('btn-text').textContent = 'Process Invoice';
+    document.getElementById('btn-spinner').classList.add('hidden');
+  }
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// =====================================================================
+// DOWNLOAD PAYMENT SLIP
+// =====================================================================
+async function downloadPaymentSlip() {
+  if (!lastPipelineResult || !lastPipelineResult.steps.payment_entry) {
+    showError('No payment entry available to generate slip.');
+    return;
+  }
+
+  const btn = document.querySelector('#result-payment_entry button');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner"></div> Generating...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/invoice/api/generate-slip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payment_entry: lastPipelineResult.steps.payment_entry,
+        extract: lastPipelineResult.steps.extract,
+        po_match: lastPipelineResult.steps.po_match || {},
+        validation: lastPipelineResult.steps.validation || {},
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to generate slip');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payment_slip_${lastPipelineResult.steps.payment_entry.entry_id || 'slip'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showError('Slip generation failed: ' + err.message);
+  } finally {
+    btn.innerHTML = origText;
+    btn.disabled = false;
+  }
+}
+
+// =====================================================================
+// TAB SWITCHING
+// =====================================================================
+function switchTab(tab) {
+  const invoiceTab = document.getElementById('tab-invoice');
+  const poTab = document.getElementById('tab-po');
+  const invoicePanel = document.getElementById('panel-invoice');
+  const poPanel = document.getElementById('panel-po');
+
+  if (tab === 'po') {
+    poTab.classList.add('bg-emerald-500/15', 'text-emerald-400');
+    poTab.classList.remove('text-slate-500');
+    invoiceTab.classList.remove('bg-accent/15', 'text-accent');
+    invoiceTab.classList.add('text-slate-500');
+    poPanel.classList.remove('hidden');
+    invoicePanel.classList.add('hidden');
+  } else {
+    invoiceTab.classList.add('bg-accent/15', 'text-accent');
+    invoiceTab.classList.remove('text-slate-500');
+    poTab.classList.remove('bg-emerald-500/15', 'text-emerald-400');
+    poTab.classList.add('text-slate-500');
+    invoicePanel.classList.remove('hidden');
+    poPanel.classList.add('hidden');
+  }
+}
+
+// =====================================================================
+// CREATE PO
+// =====================================================================
+let lastCreatedPO = null;
+
+async function createPO() {
+  const vendor = document.getElementById('po-vendor').value.trim();
+  const items = document.getElementById('po-items').value.trim();
+  const amount = parseFloat(document.getElementById('po-amount').value);
+  const deadline = document.getElementById('po-deadline').value;
+  const department = document.getElementById('po-dept').value.trim();
+
+  // Validate
+  if (!vendor || !items || !amount || amount <= 0) {
+    const errEl = document.getElementById('po-error');
+    errEl.textContent = 'Please fill in Vendor Name, Items, and a valid Amount.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('po-error').classList.add('hidden');
+  document.getElementById('po-success').classList.add('hidden');
+  const btn = document.getElementById('create-po-btn');
+  document.getElementById('po-btn-text').textContent = 'Creating...';
+  document.getElementById('po-btn-spinner').classList.remove('hidden');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/invoice/api/create-po', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vendor_name: vendor, items, amount, deadline, department }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create PO');
+
+    lastCreatedPO = data;
+
+    // Show success
+    const successEl = document.getElementById('po-success');
+    successEl.classList.remove('hidden');
+    document.getElementById('po-success-detail').textContent =
+      `${data.po_number} — ${vendor} — $${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+    // Refresh PO database sidebar
+    loadPODatabase();
+
+    // Clear form
+    document.getElementById('po-vendor').value = '';
+    document.getElementById('po-items').value = '';
+    document.getElementById('po-amount').value = '';
+    document.getElementById('po-deadline').value = '';
+    document.getElementById('po-dept').value = '';
+
+  } catch (err) {
+    const errEl = document.getElementById('po-error');
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    document.getElementById('po-btn-text').textContent = 'Create Purchase Order';
+    document.getElementById('po-btn-spinner').classList.add('hidden');
+    btn.disabled = false;
+  }
+}
+
+async function downloadPOPdf() {
+  if (!lastCreatedPO) return;
+
+  const btn = document.getElementById('download-po-btn');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner"></div> Generating...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/invoice/api/generate-po-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lastCreatedPO),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to generate PO PDF');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `purchase_order_${lastCreatedPO.po_number || 'po'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    const errEl = document.getElementById('po-error');
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
+  }
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+renderPipelineBar();
+loadPODatabase();
+</script>
+</body>
+</html>
