@@ -1,149 +1,179 @@
 """
-Routing workflows process inputs and then directs them to context-specific tasks. 
-This allows you to define specialized flows for complex tasks. For example, a workflow 
-built to answer product related questions might process the type of question first, and then 
-route the request to specific processes for pricing, refunds, returns, etc."""
+Smart Customer Support — Routing Agent
 
-
+Router classifies customer intent → Routes to specialized handler → Returns tailored response
+"""
 import os
+from typing_extensions import TypedDict, Literal
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
+from langgraph.graph import StateGraph, START, END
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
-load_dotenv('.env')
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-llm = ChatOpenAI(model="gpt-5-nano", api_key=OPENAI_API_KEY)
-
-#LLM Augmentation
-# Schema for structured output
-from pydantic import BaseModel, Field
+llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
 
 
-class SearchQuery(BaseModel):
-    search_query: str = Field(None, description="Query that is optimized web search.")
-    justification: str = Field(
-        None, description="Why this query is relevant to the user's request."
+# --- Schemas ---
+class RouteDecision(BaseModel):
+    category: Literal["billing", "technical", "refund", "account", "general"] = Field(
+        description="The category that best matches the customer's intent"
     )
+    confidence: float = Field(description="Confidence score 0-1")
+    reasoning: str = Field(description="Brief reasoning for this classification")
 
 
-# Augment the LLM with schema for structured output
-structured_llm = llm.with_structured_output(SearchQuery)
-
-# Invoke the augmented LLM
-output = structured_llm.invoke("How does Calcium CT score relate to high cholesterol?")
-
-# Define a tool
-def multiply(a: int, b: int) -> int:
-    return a * b
-
-# Augment the LLM with tools
-llm_with_tools = llm.bind_tools([multiply])
-
-# Invoke the LLM with input that triggers the tool call
-msg = llm_with_tools.invoke("What is 2 times 3?")
-
-# Get the tool call
-msg.tool_calls
-
-#ROUTING
-from typing_extensions import Literal
-from langchain.messages import HumanMessage, SystemMessage
+# --- State ---
+class SupportState(TypedDict):
+    query: str
+    category: str
+    confidence: float
+    reasoning: str
+    response: str
+    specialist: str
+    error: str
 
 
-# Schema for structured output to use as routing logic
-class Route(BaseModel):
-    step: Literal["poem", "story", "joke"] = Field(
-        None, description="The next step in the routing process"
-    )
+# --- Node 1: Router ---
+router_llm = llm.with_structured_output(RouteDecision)
+
+def classify_intent(state: SupportState):
+    """Classify the customer query into a support category"""
+    try:
+        decision = router_llm.invoke([
+            SystemMessage(content="""You are a customer support intent classifier. Classify the customer's query into exactly ONE category:
+
+- **billing**: Payment issues, charges, invoices, subscription costs, payment methods, billing cycles
+- **technical**: Bugs, errors, how-to questions, feature usage, API issues, integrations, performance
+- **refund**: Refund requests, cancellation with money back, dispute charges, overcharged
+- **account**: Login issues, password reset, account settings, profile changes, deletion, security
+- **general**: Product info, feature requests, feedback, general inquiries, anything else
+
+Be precise. "I was charged twice" = billing, not refund (unless they explicitly ask for money back)."""),
+            HumanMessage(content=f"Customer query: {state['query']}")
+        ])
+        return {
+            "category": decision.category,
+            "confidence": decision.confidence,
+            "reasoning": decision.reasoning,
+            "error": ""
+        }
+    except Exception as e:
+        return {"error": f"Classification failed: {str(e)}", "category": "general"}
 
 
-# Augment the LLM with schema for structured output
-router = llm.with_structured_output(Route)
+# --- Specialist Handlers ---
+SPECIALIST_PROMPTS = {
+    "billing": {
+        "name": "Billing Specialist",
+        "prompt": """You are a billing support specialist. You handle:
+- Payment issues and failed transactions
+- Subscription and plan changes
+- Invoice questions and billing cycles
+- Payment method updates
 
-
-# State
-class State(TypedDict):
-    input: str
-    decision: str
-    output: str
-
-
-# Nodes
-def llm_call_1(state: State):
-    """Write a story"""
-
-    result = llm.invoke(state["input"])
-    return {"output": result.content}
-
-
-def llm_call_2(state: State):
-    """Write a joke"""
-
-    result = llm.invoke(state["input"])
-    return {"output": result.content}
-
-
-def llm_call_3(state: State):
-    """Write a poem"""
-
-    result = llm.invoke(state["input"])
-    return {"output": result.content}
-
-
-def llm_call_router(state: State):
-    """Route the input to the appropriate node"""
-
-    # Run the augmented LLM with structured output to serve as routing logic
-    decision = router.invoke(
-        [
-            SystemMessage(
-                content="Route the input to story, joke, or poem based on the user's request."
-            ),
-            HumanMessage(content=state["input"]),
-        ]
-    )
-
-    return {"decision": decision.step}
-
-
-# Conditional edge function to route to the appropriate node
-def route_decision(state: State):
-    # Return the node name you want to visit next
-    if state["decision"] == "story":
-        return "llm_call_1"
-    elif state["decision"] == "joke":
-        return "llm_call_2"
-    elif state["decision"] == "poem":
-        return "llm_call_3"
-
-
-# Build workflow
-router_builder = StateGraph(State)
-
-# Add nodes
-router_builder.add_node("llm_call_1", llm_call_1)
-router_builder.add_node("llm_call_2", llm_call_2)
-router_builder.add_node("llm_call_3", llm_call_3)
-router_builder.add_node("llm_call_router", llm_call_router)
-
-# Add edges to connect nodes
-router_builder.add_edge(START, "llm_call_router")
-router_builder.add_conditional_edges(
-    "llm_call_router",
-    route_decision,
-    {  # Name returned by route_decision : Name of next node to visit
-        "llm_call_1": "llm_call_1",
-        "llm_call_2": "llm_call_2",
-        "llm_call_3": "llm_call_3",
+Be empathetic, clear about next steps, and offer specific solutions. If the issue requires escalation (like a double charge), acknowledge it and explain the process. Always end with a clear action item."""
     },
+    "technical": {
+        "name": "Technical Support Engineer",
+        "prompt": """You are a technical support engineer. You handle:
+- Bug reports and error troubleshooting
+- How-to guides and feature walkthroughs
+- API and integration issues
+- Performance problems
+
+Be technical but clear. Provide step-by-step solutions when possible. If you need more info, ask specific diagnostic questions. Use numbered steps for instructions."""
+    },
+    "refund": {
+        "name": "Refund & Retention Specialist",
+        "prompt": """You are a refund and retention specialist. You handle:
+- Refund requests and processing
+- Cancellation requests (try to retain first)
+- Charge disputes
+- Overcharge corrections
+
+Be understanding and empathetic. For refund requests: acknowledge the issue, explain the refund policy (14-day no-questions refund, after that case-by-case), and offer alternatives before processing. Always confirm the expected timeline."""
+    },
+    "account": {
+        "name": "Account Security Specialist",
+        "prompt": """You are an account security specialist. You handle:
+- Login and authentication issues
+- Password resets and 2FA
+- Account settings and profile changes
+- Account deletion and data requests
+- Security concerns
+
+Prioritize security. Never share sensitive info. Guide users through self-service options first. For security issues, be thorough and cautious."""
+    },
+    "general": {
+        "name": "Customer Success Agent",
+        "prompt": """You are a friendly customer success agent. You handle:
+- General product questions
+- Feature requests and feedback
+- Onboarding help
+- Any query that doesn't fit other categories
+
+Be warm, helpful, and proactive. Point users to relevant features and resources. For feature requests, acknowledge and log them."""
+    }
+}
+
+def make_specialist(category):
+    """Factory to create specialist handler nodes"""
+    spec = SPECIALIST_PROMPTS[category]
+    def handler(state: SupportState):
+        response = llm.invoke([
+            SystemMessage(content=spec["prompt"]),
+            HumanMessage(content=f"Customer query: {state['query']}\n\nProvide a helpful, professional response.")
+        ])
+        return {
+            "response": response.content,
+            "specialist": spec["name"]
+        }
+    handler.__name__ = f"handle_{category}"
+    return handler
+
+
+# --- Route function ---
+def route_to_specialist(state: SupportState):
+    """Route to the appropriate specialist based on classification"""
+    category = state.get("category", "general")
+    return f"handle_{category}"
+
+
+# --- Build Workflow ---
+workflow = StateGraph(SupportState)
+
+# Add router node
+workflow.add_node("classify_intent", classify_intent)
+
+# Add specialist nodes
+for cat in SPECIALIST_PROMPTS:
+    workflow.add_node(f"handle_{cat}", make_specialist(cat))
+
+# Edges
+workflow.add_edge(START, "classify_intent")
+workflow.add_conditional_edges(
+    "classify_intent",
+    route_to_specialist,
+    {f"handle_{cat}": f"handle_{cat}" for cat in SPECIALIST_PROMPTS}
 )
-router_builder.add_edge("llm_call_1", END)
-router_builder.add_edge("llm_call_2", END)
-router_builder.add_edge("llm_call_3", END)
+for cat in SPECIALIST_PROMPTS:
+    workflow.add_edge(f"handle_{cat}", END)
 
-# Compile workflow
-router_workflow = router_builder.compile()
+support_chain = workflow.compile()
 
-# Invoke
-state = router_workflow.invoke({"input": "Write me a joke about cats"})
-print(state["output"])
+
+def handle_support_query(query: str) -> dict:
+    """Run a customer query through the support routing pipeline."""
+    initial_state = {
+        "query": query,
+        "category": "",
+        "confidence": 0.0,
+        "reasoning": "",
+        "response": "",
+        "specialist": "",
+        "error": ""
+    }
+    return support_chain.invoke(initial_state)
