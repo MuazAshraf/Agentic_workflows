@@ -1,112 +1,164 @@
 """
-With parallelization, LLMs work simultaneously on a task. This is either done by running multiple independent subtasks at the same time, or running the same task multiple times to check for different outputs. Parallelization is commonly used to:
-Split up subtasks and run them in parallel, which increases speed
-Run tasks multiple times to check for different outputs, which increases confidence
-Some examples include:
-Running one subtask that processes a document for keywords, and a second subtask to check for formatting errors
-Running a task multiple times that scores a document for accuracy based on different criteria, like the number of citations, the number of sources used, and the quality of the sources
+Multi-Platform Content Generator — Parallelization Agent
+
+4 parallel workers generate content for different platforms simultaneously, then aggregate.
 """
 import os
+from typing import Annotated
+from typing_extensions import TypedDict
+import operator
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
+from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 
-load_dotenv('.env')
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-llm = ChatOpenAI(model="gpt-5-nano", api_key=OPENAI_API_KEY)
-
-#LLM Augmentation
-# Schema for structured output
-from pydantic import BaseModel, Field
+llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
 
 
-class SearchQuery(BaseModel):
-    search_query: str = Field(None, description="Query that is optimized web search.")
-    justification: str = Field(
-        None, description="Why this query is relevant to the user's request."
-    )
-
-
-# Augment the LLM with schema for structured output
-structured_llm = llm.with_structured_output(SearchQuery)
-
-# Invoke the augmented LLM
-output = structured_llm.invoke("How does Calcium CT score relate to high cholesterol?")
-
-# Define a tool
-def multiply(a: int, b: int) -> int:
-    return a * b
-
-# Augment the LLM with tools
-llm_with_tools = llm.bind_tools([multiply])
-
-# Invoke the LLM with input that triggers the tool call
-msg = llm_with_tools.invoke("What is 2 times 3?")
-
-# Get the tool call
-msg.tool_calls
-
-#Parallelization
-# Graph state
-class State(TypedDict):
+# --- State ---
+class ContentState(TypedDict):
     topic: str
-    joke: str
-    story: str
-    poem: str
-    combined_output: str
+    context: str  # Additional context/details from user
+    tone: str  # professional, casual, excited, informative
+    twitter: str
+    linkedin: str
+    blog: str
+    email: str
+    error: str
 
 
-# Nodes
-def call_llm_1(state: State):
-    """First LLM call to generate initial joke"""
+# --- Worker 1: Twitter/X Thread ---
+def generate_twitter(state: ContentState):
+    """Generate a Twitter/X thread"""
+    result = llm.invoke([
+        SystemMessage(content=f"""You are a viral Twitter/X content creator. Write a thread about the given topic.
 
-    msg = llm.invoke(f"Write a joke about {state['topic']}")
-    return {"joke": msg.content}
+Rules:
+- Write exactly 5 tweets in a thread
+- First tweet is the hook (attention-grabbing, makes people want to read more)
+- Each tweet max 280 characters
+- Use line breaks between tweets
+- Format: "1/ [tweet]" then "2/ [tweet]" etc.
+- Include 1-2 relevant emojis per tweet (not excessive)
+- Last tweet = CTA (call to action)
+- Tone: {state.get('tone', 'professional')}
 
-
-def call_llm_2(state: State):
-    """Second LLM call to generate story"""
-
-    msg = llm.invoke(f"Write a story about {state['topic']}")
-    return {"story": msg.content}
-
-
-def call_llm_3(state: State):
-    """Third LLM call to generate poem"""
-
-    msg = llm.invoke(f"Write a poem about {state['topic']}")
-    return {"poem": msg.content}
-
-
-def aggregator(state: State):
-    """Combine the joke, story and poem into a single output"""
-
-    combined = f"Here's a story, joke, and poem about {state['topic']}!\n\n"
-    combined += f"STORY:\n{state['story']}\n\n"
-    combined += f"JOKE:\n{state['joke']}\n\n"
-    combined += f"POEM:\n{state['poem']}"
-    return {"combined_output": combined}
+Do NOT use hashtags in every tweet. Max 2-3 hashtags in the last tweet only."""),
+        HumanMessage(content=f"Topic: {state['topic']}\nContext: {state.get('context', 'N/A')}")
+    ])
+    return {"twitter": result.content}
 
 
-# Build workflow
-parallel_builder = StateGraph(State)
+# --- Worker 2: LinkedIn Post ---
+def generate_linkedin(state: ContentState):
+    """Generate a LinkedIn post"""
+    result = llm.invoke([
+        SystemMessage(content=f"""You are a LinkedIn content strategist. Write a single LinkedIn post.
+
+Rules:
+- Start with a strong hook (first line people see before "...see more")
+- 150-200 words max
+- Use short paragraphs (1-2 sentences each)
+- Include a personal angle or insight
+- End with a question to drive engagement
+- Add 3-5 relevant hashtags at the end
+- Tone: {state.get('tone', 'professional')}
+- Use line breaks for readability (LinkedIn rewards whitespace)
+
+Do NOT be generic. Be specific and opinionated."""),
+        HumanMessage(content=f"Topic: {state['topic']}\nContext: {state.get('context', 'N/A')}")
+    ])
+    return {"linkedin": result.content}
+
+
+# --- Worker 3: Blog Post ---
+def generate_blog(state: ContentState):
+    """Generate a blog post outline + intro"""
+    result = llm.invoke([
+        SystemMessage(content=f"""You are a blog content writer. Write a blog post outline with an introduction.
+
+Rules:
+- Write a compelling title (SEO-friendly)
+- Write an intro paragraph (3-4 sentences, hook the reader)
+- Then an outline with 5-6 sections (## heading + 1-sentence description each)
+- End with a conclusion section description
+- Use markdown formatting
+- Tone: {state.get('tone', 'informative')}
+- Total output: ~200 words
+
+The outline should be practical and actionable, not generic."""),
+        HumanMessage(content=f"Topic: {state['topic']}\nContext: {state.get('context', 'N/A')}")
+    ])
+    return {"blog": result.content}
+
+
+# --- Worker 4: Email Newsletter ---
+def generate_email(state: ContentState):
+    """Generate an email newsletter draft"""
+    result = llm.invoke([
+        SystemMessage(content=f"""You are an email marketing specialist. Write a newsletter email draft.
+
+Rules:
+- Subject line (compelling, under 60 chars)
+- Preview text (under 90 chars)
+- Email body: 150-200 words max
+- Structure: Hook → Value → CTA
+- One clear call-to-action button text
+- Tone: {state.get('tone', 'professional')} but conversational
+- Use short paragraphs
+- Format with markdown (## for subject, **bold** for emphasis)
+
+Write like you're emailing a friend who happens to be a professional."""),
+        HumanMessage(content=f"Topic: {state['topic']}\nContext: {state.get('context', 'N/A')}")
+    ])
+    return {"email": result.content}
+
+
+# --- Aggregator ---
+def aggregate(state: ContentState):
+    """All content is already in state from parallel workers. Just validate."""
+    return {"error": ""}
+
+
+# --- Build Workflow ---
+workflow = StateGraph(ContentState)
 
 # Add nodes
-parallel_builder.add_node("call_llm_1", call_llm_1)
-parallel_builder.add_node("call_llm_2", call_llm_2)
-parallel_builder.add_node("call_llm_3", call_llm_3)
-parallel_builder.add_node("aggregator", aggregator)
+workflow.add_node("twitter", generate_twitter)
+workflow.add_node("linkedin", generate_linkedin)
+workflow.add_node("blog", generate_blog)
+workflow.add_node("email", generate_email)
+workflow.add_node("aggregate", aggregate)
 
-# Add edges to connect nodes
-parallel_builder.add_edge(START, "call_llm_1")
-parallel_builder.add_edge(START, "call_llm_2")
-parallel_builder.add_edge(START, "call_llm_3")
-parallel_builder.add_edge("call_llm_1", "aggregator")
-parallel_builder.add_edge("call_llm_2", "aggregator")
-parallel_builder.add_edge("call_llm_3", "aggregator")
-parallel_builder.add_edge("aggregator", END)
-parallel_workflow = parallel_builder.compile()
+# Fan out from START to all 4 workers in parallel
+workflow.add_edge(START, "twitter")
+workflow.add_edge(START, "linkedin")
+workflow.add_edge(START, "blog")
+workflow.add_edge(START, "email")
 
-# Invoke
-state = parallel_workflow.invoke({"topic": "cats"})
-print(state["combined_output"])
+# All workers feed into aggregator
+workflow.add_edge("twitter", "aggregate")
+workflow.add_edge("linkedin", "aggregate")
+workflow.add_edge("blog", "aggregate")
+workflow.add_edge("email", "aggregate")
+
+workflow.add_edge("aggregate", END)
+
+content_chain = workflow.compile()
+
+
+def generate_content(topic: str, context: str = "", tone: str = "professional") -> dict:
+    """Generate content for all 4 platforms."""
+    initial_state = {
+        "topic": topic,
+        "context": context,
+        "tone": tone,
+        "twitter": "",
+        "linkedin": "",
+        "blog": "",
+        "email": "",
+        "error": ""
+    }
+    return content_chain.invoke(initial_state)
