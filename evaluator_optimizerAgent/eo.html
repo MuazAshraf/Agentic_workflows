@@ -922,7 +922,7 @@
           answers: answers,
         });
 
-        if (!data.success) throw new Error('Evaluation failed');
+        if (!data.success) throw new Error(data.error || 'Evaluation failed');
 
         appState.serverState = data.state;
         appState.phase = 'result';
@@ -943,9 +943,10 @@
         updateAttemptTracker();
 
       } catch (err) {
+        console.error('Submit error:', err);
         setProcessing(false);
         setFlowState('eval', 'failed');
-        showError('Failed to evaluate answers. Please try again.');
+        showError('Evaluation error: ' + err.message);
       }
     }
 

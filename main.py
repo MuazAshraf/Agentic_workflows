@@ -16,10 +16,14 @@ CORS(app)
 from PromptChainingAgent.app import invoice_bp
 from Orchestrator_workerAgent.app import research_bp
 from evaluator_optimizerAgent.app import tutor_bp
+from RoutingAgent.app import support_bp
+from ParallelizationAgent.app import content_bp
 
 app.register_blueprint(invoice_bp)
 app.register_blueprint(research_bp)
 app.register_blueprint(tutor_bp)
+app.register_blueprint(support_bp)
+app.register_blueprint(content_bp)
 
 
 # --- Landing page ---
@@ -34,5 +38,7 @@ if __name__ == "__main__":
     print("  http://localhost:5000/invoice/       → Invoice Pipeline")
     print("  http://localhost:5000/research/      → Market Research")
     print("  http://localhost:5000/tutor/         → AI Tutor")
+    print("  http://localhost:5000/support/       → Customer Support")
+    print("  http://localhost:5000/content/       → Content Generator")
     print()
     app.run(debug=True, port=5000)

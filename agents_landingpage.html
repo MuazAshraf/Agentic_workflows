@@ -112,6 +112,12 @@
     .agent-card.is-live.glow-emerald:hover {
       box-shadow: 0 0 60px rgba(52,211,153,0.08), 0 8px 40px rgba(0,0,0,0.4);
     }
+    .agent-card.is-live.glow-amber:hover {
+      box-shadow: 0 8px 40px rgba(251,191,36,0.08);
+    }
+    .agent-card.is-live.glow-cyan:hover {
+      box-shadow: 0 8px 40px rgba(34,211,238,0.08);
+    }
     .agent-card.is-live.glow-violet:hover {
       box-shadow: 0 0 60px rgba(167,139,250,0.08), 0 8px 40px rgba(0,0,0,0.4);
     }
@@ -184,9 +190,6 @@
     <!-- Tech stack pills -->
     <div class="hero-fade hero-fade-4 mt-10 flex flex-wrap justify-center gap-3">
       <span class="tech-pill">LangGraph</span>
-      <span class="tech-pill">GPT-4o-mini</span>
-      <span class="tech-pill">Flask</span>
-      <span class="tech-pill">Tailwind CSS</span>
     </div>
   </header>
 
@@ -263,41 +266,45 @@
         </div>
       </a>
 
-      <!-- 4. Routing — COMING SOON -->
-      <div class="agent-card is-soon"
+      <!-- 4. Routing — LIVE -->
+      <a href="/support/" class="agent-card is-live glow-amber"
            data-aos="fade-up"
            data-aos-delay="300"
            data-aos-duration="600">
-        <div class="accent-line" style="background: #fbbf24; opacity: 0.5;"></div>
+        <div class="accent-line" style="background: #fbbf24;"></div>
         <p class="text-[11px] font-semibold tracking-[0.15em] uppercase mb-2" style="color: #fbbf24;">Routing</p>
-        <h3 class="text-lg font-semibold text-zinc-300 mb-3 leading-snug">Smart Request Router</h3>
+        <h3 class="text-lg font-semibold text-zinc-300 mb-3 leading-snug">Smart Customer Support</h3>
         <p class="text-sm text-zinc-500 leading-relaxed mb-6">
-          Classify and route requests to specialized handlers based on intent.
+          Type a customer query — AI classifies intent and routes to a specialized support handler.
         </p>
         <div class="flex items-center justify-between">
-          <span class="inline-flex items-center gap-2 text-xs font-medium text-zinc-600">
-            Coming Soon
+          <span class="inline-flex items-center gap-2 text-xs font-medium text-emerald-400">
+            <span class="live-dot"></span>
+            Live
           </span>
+          <svg class="w-4 h-4 text-zinc-600 card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
         </div>
-      </div>
+      </a>
 
-      <!-- 5. Parallelization — COMING SOON -->
-      <div class="agent-card is-soon"
+      <!-- 5. Parallelization — LIVE -->
+      <a href="/content/" class="agent-card glow-cyan"
            data-aos="fade-up"
            data-aos-delay="400"
            data-aos-duration="600">
-        <div class="accent-line" style="background: #22d3ee; opacity: 0.5;"></div>
+        <div class="accent-line" style="background: #22d3ee;"></div>
         <p class="text-[11px] font-semibold tracking-[0.15em] uppercase mb-2" style="color: #22d3ee;">Parallelization</p>
-        <h3 class="text-lg font-semibold text-zinc-300 mb-3 leading-snug">Parallel Task Runner</h3>
+        <h3 class="text-lg font-semibold text-zinc-300 mb-3 leading-snug">Multi-Platform Content Generator</h3>
         <p class="text-sm text-zinc-500 leading-relaxed mb-6">
-          Execute multiple AI tasks simultaneously and aggregate results.
+          Enter a topic — 4 parallel workers generate Twitter, LinkedIn, Blog, and Email content simultaneously.
         </p>
         <div class="flex items-center justify-between">
-          <span class="inline-flex items-center gap-2 text-xs font-medium text-zinc-600">
-            Coming Soon
+          <span class="inline-flex items-center gap-2 text-xs font-medium text-emerald-400">
+            <span class="live-dot"></span>
+            Live
           </span>
+          <svg class="w-4 h-4 text-zinc-600 card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
         </div>
-      </div>
+      </a>
 
     </div>
   </main>
@@ -311,12 +318,6 @@
       </p>
       <div class="flex items-center gap-4 text-xs text-zinc-700 font-medium">
         <span>LangGraph</span>
-        <span class="text-zinc-800">/</span>
-        <span>GPT-4o-mini</span>
-        <span class="text-zinc-800">/</span>
-        <span>Flask</span>
-        <span class="text-zinc-800">/</span>
-        <span>Tailwind</span>
       </div>
     </div>
   </footer>

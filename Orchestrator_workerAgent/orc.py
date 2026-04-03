@@ -15,6 +15,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from pydantic import BaseModel, Field
 from tavily import TavilyClient
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
@@ -22,6 +23,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 # --- Clients ---
 llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
 # --- Schemas ---
@@ -102,16 +104,19 @@ def worker(state: WorkerState):
     analysis = llm.invoke([
         SystemMessage(content=f"""You are a market research analyst. Write the "{section_name}" section of a competitive research report.
 
-Use the search results below as your primary source. Write in clear, professional markdown with:
-- Key findings as bullet points
-- Specific competitor names, prices, and strategies when found
-- Data-driven insights (numbers, percentages, market sizes)
-- Actionable takeaways for the entrepreneur
+CRITICAL FORMATTING RULES:
+1. Keep it SHORT — max 200 words of prose. Humans won't read walls of text.
+2. Use MARKDOWN TABLES for any comparison data. Example:
+   | Competitor | Price | Key Feature | Weakness |
+   |-----------|-------|-------------|----------|
+   | Drata | $500/mo | SOC 2 automation | No HIPAA |
+3. Use bullet points for findings — max 4-5 bullets, each under 20 words
+4. End with exactly 2-3 "Actionable Takeaways" as bullets
+5. NO long paragraphs. If you can say it in a table, use a table.
+6. Use ## for the section header, ### for subsections
 
 Section focus: {description}
-Business idea context: {idea}
-
-Keep the section focused and under 400 words. Use ## for the section header."""),
+Business idea context: {idea}"""),
         HumanMessage(content=f"Search results:\n{search_context}")
     ])
 
@@ -142,17 +147,41 @@ def synthesizer(state: OrcState):
 
     # LLM creates executive summary + final polish
     final = llm.invoke([
-        SystemMessage(content="""You are a senior market research analyst. Create a polished final report by:
+        SystemMessage(content="""You are a senior market research analyst. Create a CONCISE, SCANNABLE final report.
 
-1. Write an **Executive Summary** (150 words max) at the top with key findings and recommendations
-2. Include all the section content provided below (don't cut anything)
-3. Add a **Key Recommendations** section at the end with 5-7 actionable bullet points
-4. Add a **Sources** section listing all reference links
+A busy founder will spend MAX 5 minutes reading this. Make every word count.
 
-Use clean markdown formatting. Start with:
+STRUCTURE (follow exactly):
+
 # Market Research Report: [Business Idea]
-## Executive Summary"""),
-        HumanMessage(content=f"Business idea: {idea}\n\nTarget market: {plan.get('target_market', 'N/A')}\n\nResearch sections:\n{combined_sections}\n\nSources:\n" + "\n".join(all_sources))
+
+## Executive Summary
+- 3-4 bullet points ONLY, each one sentence. Key numbers highlighted.
+
+## Competitive Overview
+- A markdown TABLE comparing top 3-5 competitors: | Competitor | Pricing | Strengths | Weaknesses | Your Advantage |
+
+## Market Opportunity
+- Market size as a single bold number
+- 3 bullet points on trends/gaps
+
+## Pricing Strategy
+- A markdown TABLE: | Tier | Price | Target | Features |
+- 1-2 sentences on positioning
+
+## Go-To-Market Playbook
+- 5 numbered action items, each ONE sentence
+
+## Bottom Line
+- 2-3 sentences: what to build, who to target, and why you'll win
+
+RULES:
+- Total report under 600 words
+- Use tables wherever possible instead of bullets
+- No filler words, no "In conclusion", no "It's worth noting"
+- Every sentence must be actionable or contain a data point
+- Preserve competitor names, prices, and numbers from the research"""),
+        HumanMessage(content=f"Business idea: {idea}\n\nTarget market: {plan.get('target_market', 'N/A')}\n\nResearch data:\n{combined_sections}\n\nSources:\n" + "\n".join(all_sources))
     ])
 
     return {"final_report": final.content}
@@ -192,3 +221,47 @@ def run_market_research(idea: str) -> dict:
         "error": ""
     }
     return research_chain.invoke(initial_state)
+
+
+# --- Image Generation via Gemini ---
+IMAGE_PROMPTS = [
+    "A clean, modern infographic showing a competitive landscape map with company logos positioned by market share and innovation. Professional business style, white background, minimal design.",
+    "A visually appealing market positioning chart showing different pricing tiers (Free, Pro, Enterprise) with features comparison. Clean corporate infographic style.",
+    "A professional target audience persona infographic showing demographics, pain points, and needs. Modern flat design with icons and data visualization.",
+    "A growth strategy roadmap infographic showing phases of market entry, customer acquisition channels, and scaling milestones. Professional timeline style.",
+]
+
+def generate_research_images(idea: str, report_summary: str) -> list:
+    """Generate research visuals using Gemini image generation. Returns list of image bytes."""
+    images = []
+
+    # Create contextual prompts based on the business idea
+    prompts = [
+        f"Create a professional business infographic: Competitive landscape overview for '{idea}'. Show a clean market map with placeholder competitor positions. Modern minimal style, light background, corporate colors.",
+        f"Create a professional pricing comparison infographic for the '{idea}' market. Show 3 pricing tiers (Basic, Pro, Enterprise) with feature checkmarks. Clean modern design, light background.",
+        f"Create a professional target customer persona infographic for '{idea}'. Show demographics, key pain points, and needs. Modern flat design with icons.",
+        f"Create a professional growth strategy timeline infographic for '{idea}'. Show 4 phases: Launch, Growth, Scale, Dominate. Modern minimal design with milestones.",
+    ]
+
+    for i, prompt in enumerate(prompts):
+        try:
+            response = gemini_client.models.generate_content(
+                model="gemini-3.1-flash-image-preview",
+                contents=[prompt],
+            )
+            for part in response.parts:
+                if part.inline_data is not None:
+                    # Use raw bytes directly from inline_data
+                    img_bytes = part.inline_data.data
+                    mime = part.inline_data.mime_type or "image/png"
+                    ext = "png" if "png" in mime else "jpeg"
+                    images.append({
+                        "data": img_bytes,
+                        "filename": f"research_visual_{i+1}.{ext}",
+                    })
+                    break
+        except Exception as e:
+            print(f"Image generation {i+1} failed: {e}")
+            continue
+
+    return images
