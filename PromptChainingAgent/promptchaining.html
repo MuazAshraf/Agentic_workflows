@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,63 +7,68 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            surface: {
-              50: '#f8fafc',
-              100: '#f1f5f9',
-              200: '#e2e8f0',
-              700: '#1a1f2e',
-              800: '#131825',
-              900: '#0c1018',
-              950: '#080b12',
-            },
-            accent: {
-              DEFAULT: '#3b82f6',
-              muted: '#1d4ed8',
-              glow: 'rgba(59,130,246,0.15)',
-            },
-            success: '#10b981',
-            danger: '#ef4444',
-            warn: '#f59e0b',
-          },
           fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
           },
         }
       }
     }
   </script>
+
+  <!-- Inter + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- AOS Library -->
+  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
+
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #09090b;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
 
-    /* Glassmorphism card */
-    .glass {
-      background: rgba(255,255,255,0.03);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.06);
+    /* Card base — matching landing page */
+    .ds-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                  box-shadow 0.35s ease,
+                  border-color 0.35s ease;
     }
-    .glass-hover:hover {
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(255,255,255,0.1);
+    .ds-card-hover:hover {
+      border-color: rgba(255,255,255,0.12);
+      box-shadow: 0 0 60px rgba(96,165,250,0.06), 0 8px 40px rgba(0,0,0,0.4);
+    }
+
+    /* Nav bar */
+    .nav-bar {
+      background: rgba(9,9,11,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
 
     /* Pipeline node pulse */
     @keyframes nodePulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
-      50% { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(96,165,250,0); }
     }
     .node-active { animation: nodePulse 1.8s ease-in-out infinite; }
 
@@ -73,11 +78,11 @@
       100% { background-position: 200% 0; }
     }
     .line-active {
-      background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.6) 50%, rgba(59,130,246,0.1) 100%);
+      background: linear-gradient(90deg, rgba(96,165,250,0.1) 0%, rgba(96,165,250,0.6) 50%, rgba(96,165,250,0.1) 100%);
       background-size: 200% 100%;
       animation: lineFlow 1.5s linear infinite;
     }
-    .line-done { background: rgba(16,185,129,0.4); }
+    .line-done { background: rgba(52,211,153,0.4); }
     .line-idle { background: rgba(255,255,255,0.06); }
 
     /* Card entrance */
@@ -92,7 +97,7 @@
     .spinner {
       width: 18px; height: 18px;
       border: 2px solid rgba(255,255,255,0.15);
-      border-top-color: #3b82f6;
+      border-top-color: #60a5fa;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
@@ -100,59 +105,106 @@
     /* Drag zone */
     .drop-zone { transition: all 0.25s ease; }
     .drop-zone.drag-over {
-      border-color: rgba(59,130,246,0.6);
-      background: rgba(59,130,246,0.06);
+      border-color: rgba(96,165,250,0.6);
+      background: rgba(96,165,250,0.06);
     }
 
     /* Confidence bar */
     .conf-bar-inner { transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
-
-    /* Subtle glow on hover */
-    .glow-hover:hover { box-shadow: 0 0 30px rgba(59,130,246,0.08); }
 
     /* JSON syntax */
     .json-key { color: #93c5fd; }
     .json-string { color: #86efac; }
     .json-number { color: #fbbf24; }
     .json-bool { color: #c084fc; }
-    .json-null { color: #6b7280; }
+    .json-null { color: #52525b; }
 
     /* Fade in */
     @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
     .fade-in { animation: fadeIn 0.4s ease forwards; }
 
-    /* Badge pulse for success/fail */
+    /* Badge pop */
     @keyframes badgePop {
       0% { transform: scale(0.7); opacity: 0; }
       60% { transform: scale(1.08); }
       100% { transform: scale(1); opacity: 1; }
     }
     .badge-pop { animation: badgePop 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* Live pulse — matching landing page */
+    @keyframes breathe {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .live-pulse { animation: breathe 2.4s ease-in-out infinite; }
+
+    /* Tech pills — matching landing page */
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #71717a;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      letter-spacing: 0.02em;
+    }
+
+    /* Input focus ring */
+    .ds-input {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .ds-input:focus {
+      outline: none;
+      border-color: rgba(96,165,250,0.5);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.08);
+    }
+
+    /* Tab active state */
+    .tab-active {
+      background: rgba(96,165,250,0.12);
+      color: #60a5fa;
+    }
+    .tab-active-green {
+      background: rgba(52,211,153,0.12);
+      color: #34d399;
+    }
+
+    /* Section divider */
+    .section-divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+    }
   </style>
 </head>
-<body class="bg-surface-950 text-white min-h-screen antialiased">
+<body class="min-h-screen">
 
   <!-- =============== TOP NAV =============== -->
-  <nav class="sticky top-0 z-50 glass border-b border-white/5">
+  <nav class="nav-bar sticky top-0 z-50">
     <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
       <a href="/"
-         class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors duration-200 group">
+         class="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors duration-200 group">
         <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
         All Agents
       </a>
       <div class="text-center">
-        <h1 class="text-base font-semibold tracking-tight">Invoice Processing Pipeline</h1>
-        <p class="text-[11px] text-slate-500 font-medium tracking-wide uppercase">Prompt Chaining Agent</p>
+        <h1 class="text-base font-semibold tracking-tight text-white">Invoice Processing Pipeline</h1>
+        <p class="text-[11px] font-semibold tracking-[0.15em] uppercase" style="color: #60a5fa;">Prompt Chaining Agent</p>
       </div>
       <div class="w-24"></div>
     </div>
   </nav>
 
   <!-- =============== PIPELINE VISUALIZATION =============== -->
-  <section class="max-w-[1600px] mx-auto px-6 pt-8 pb-4">
-    <div class="glass rounded-2xl px-8 py-6">
+  <section class="max-w-[1600px] mx-auto px-6 pt-8 pb-4" data-aos="fade-up" data-aos-duration="600">
+    <div class="ds-card px-8 py-6">
       <div class="flex items-center justify-between" id="pipeline-bar">
         <!-- Nodes + lines generated by JS -->
       </div>
@@ -166,51 +218,51 @@
     <aside class="w-[380px] flex-shrink-0 flex flex-col gap-5">
 
       <!-- Tab Switcher -->
-      <div class="glass rounded-2xl p-1.5 flex gap-1">
+      <div class="ds-card p-1.5 flex gap-1" data-aos="fade-up" data-aos-delay="100" data-aos-duration="600">
         <button id="tab-invoice" onclick="switchTab('invoice')"
-                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 bg-accent/15 text-accent">
+                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 tab-active">
           Process Invoice
         </button>
         <button id="tab-po" onclick="switchTab('po')"
-                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-300">
+                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-200 text-zinc-500 hover:text-zinc-300">
           Create PO
         </button>
       </div>
 
       <!-- ====== CREATE PO CARD (hidden by default) ====== -->
-      <div id="panel-po" class="hidden glass rounded-2xl p-6 glow-hover transition-all duration-300">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+      <div id="panel-po" class="hidden ds-card ds-card-hover p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="150" data-aos-duration="600">
+        <h2 class="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
           <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           Create Purchase Order
         </h2>
 
         <div class="space-y-3">
           <div>
-            <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Vendor Name *</label>
+            <label class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-1 block">Vendor Name *</label>
             <input id="po-vendor" type="text" placeholder="e.g. TechSolutions Pvt Ltd"
-                   class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors" />
+                   class="ds-input w-full h-10 px-3 rounded-lg text-sm text-zinc-200 placeholder-zinc-600" />
           </div>
           <div>
-            <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Items / Work Description *</label>
+            <label class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-1 block">Items / Work Description *</label>
             <textarea id="po-items" rows="3" placeholder="e.g. AI Chatbot Development, RAG Pipeline Integration"
-                      class="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors resize-none"></textarea>
+                      class="ds-input w-full px-3 py-2 rounded-lg text-sm text-zinc-200 placeholder-zinc-600 resize-none"></textarea>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Amount (USD) *</label>
+              <label class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-1 block">Amount (USD) *</label>
               <input id="po-amount" type="number" step="0.01" min="0" placeholder="9670.00"
-                     class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors" />
+                     class="ds-input w-full h-10 px-3 rounded-lg text-sm text-zinc-200 placeholder-zinc-600" />
             </div>
             <div>
-              <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Deadline</label>
+              <label class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-1 block">Deadline</label>
               <input id="po-deadline" type="date"
-                     class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 focus:border-accent/50 focus:outline-none transition-colors" />
+                     class="ds-input w-full h-10 px-3 rounded-lg text-sm text-zinc-200" />
             </div>
           </div>
           <div>
-            <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-1 block">Department</label>
+            <label class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-1 block">Department</label>
             <input id="po-dept" type="text" placeholder="e.g. IT, Finance, Operations"
-                   class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors" />
+                   class="ds-input w-full h-10 px-3 rounded-lg text-sm text-zinc-200 placeholder-zinc-600" />
           </div>
         </div>
 
@@ -228,7 +280,7 @@
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
             <span class="text-sm font-semibold text-emerald-400">PO Created Successfully</span>
           </div>
-          <p class="text-xs text-slate-400" id="po-success-detail"></p>
+          <p class="text-xs text-zinc-400" id="po-success-detail"></p>
           <button id="download-po-btn" onclick="downloadPOPdf()"
                   class="mt-3 w-full h-9 rounded-lg bg-emerald-600/20 border border-emerald-500/20 text-emerald-400 text-xs font-semibold
                          hover:bg-emerald-600/30 transition-all duration-200 flex items-center justify-center gap-2">
@@ -240,13 +292,13 @@
         </div>
 
         <!-- PO Error -->
-        <div id="po-error" class="hidden mt-3 p-3 rounded-xl bg-danger/10 border border-danger/20 text-sm text-red-400"></div>
+        <div id="po-error" class="hidden mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400"></div>
       </div>
 
       <!-- ====== UPLOAD INVOICE CARD ====== -->
-      <div id="panel-invoice" class="glass rounded-2xl p-6 glow-hover transition-all duration-300">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-          <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+      <div id="panel-invoice" class="ds-card ds-card-hover p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="150" data-aos-duration="600">
+        <h2 class="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4" style="color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
           Upload Invoice
         </h2>
 
@@ -255,25 +307,25 @@
              class="drop-zone relative border-2 border-dashed border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-white/20 transition-all duration-200">
           <input type="file" id="file-input" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer" />
           <div id="drop-placeholder" class="flex flex-col items-center gap-3">
-            <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
-              <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);">
+              <svg class="w-6 h-6 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
             </div>
             <div>
-              <p class="text-sm text-slate-400">Drop your PDF invoice here</p>
-              <p class="text-xs text-slate-600 mt-1">or click to browse</p>
+              <p class="text-sm text-zinc-400">Drop your PDF invoice here</p>
+              <p class="text-xs text-zinc-600 mt-1">or click to browse</p>
             </div>
           </div>
           <div id="file-info" class="hidden flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(96,165,250,0.1);">
+              <svg class="w-5 h-5" style="color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             </div>
             <div class="text-left overflow-hidden">
-              <p id="file-name" class="text-sm font-medium text-slate-200 truncate"></p>
-              <p id="file-size" class="text-xs text-slate-500"></p>
+              <p id="file-name" class="text-sm font-medium text-zinc-200 truncate"></p>
+              <p id="file-size" class="text-xs text-zinc-500"></p>
             </div>
-            <button id="clear-file" class="ml-auto p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors">
+            <button id="clear-file" class="ml-auto p-1.5 rounded-lg hover:bg-white/5 text-zinc-500 hover:text-zinc-300 transition-colors">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
@@ -282,27 +334,28 @@
         <!-- Process Button -->
         <button id="process-btn"
                 disabled
-                class="mt-4 w-full h-11 rounded-xl bg-accent text-white text-sm font-semibold
+                class="mt-4 w-full h-11 rounded-xl text-white text-sm font-semibold
                        disabled:opacity-30 disabled:cursor-not-allowed
-                       hover:bg-blue-600 active:scale-[0.98]
-                       transition-all duration-200 flex items-center justify-center gap-2">
+                       hover:brightness-110 active:scale-[0.98]
+                       transition-all duration-200 flex items-center justify-center gap-2"
+                style="background: #60a5fa;">
           <span id="btn-text">Process Invoice</span>
           <div id="btn-spinner" class="spinner hidden"></div>
         </button>
 
         <!-- Error Display -->
-        <div id="error-area" class="hidden mt-3 p-3 rounded-xl bg-danger/10 border border-danger/20 text-sm text-red-400"></div>
+        <div id="error-area" class="hidden mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400"></div>
       </div>
 
       <!-- PO Database Card -->
-      <div class="glass rounded-2xl overflow-hidden glow-hover transition-all duration-300">
+      <div class="ds-card ds-card-hover overflow-hidden transition-all duration-300" data-aos="fade-up" data-aos-delay="200" data-aos-duration="600">
         <button id="po-toggle"
-                class="w-full px-6 py-4 flex items-center justify-between text-sm font-semibold text-slate-300 hover:text-white transition-colors">
+                class="w-full px-6 py-4 flex items-center justify-between text-sm font-semibold text-zinc-300 hover:text-white transition-colors">
           <span class="flex items-center gap-2">
             <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
             PO Database
           </span>
-          <svg id="po-chevron" class="w-4 h-4 text-slate-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <svg id="po-chevron" class="w-4 h-4 text-zinc-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div id="po-content" class="hidden px-6 pb-5">
           <div id="po-table" class="space-y-2"></div>
@@ -313,14 +366,14 @@
     <!-- RIGHT PANEL (RESULTS) -->
     <section class="flex-1 min-w-0">
       <!-- Empty State -->
-      <div id="empty-state" class="flex flex-col items-center justify-center h-full text-center py-20">
-        <div class="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-6">
-          <svg class="w-10 h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div id="empty-state" class="flex flex-col items-center justify-center h-full text-center py-20" data-aos="fade-up" data-aos-delay="200" data-aos-duration="600">
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center mb-6" style="background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07);">
+          <svg class="w-10 h-10 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
           </svg>
         </div>
-        <h3 class="text-lg font-semibold text-slate-500 mb-2">No results yet</h3>
-        <p class="text-sm text-slate-600 max-w-sm">Upload a PDF invoice and hit "Process Invoice" to run the 5-step prompt chaining pipeline.</p>
+        <h3 class="text-lg font-semibold text-zinc-500 mb-2">No results yet</h3>
+        <p class="text-sm text-zinc-600 max-w-sm">Upload a PDF invoice and hit "Process Invoice" to run the 5-step prompt chaining pipeline.</p>
       </div>
 
       <!-- Result Cards Container -->
@@ -328,6 +381,35 @@
       </div>
     </section>
   </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="max-w-[1600px] mx-auto px-6 pb-12">
+    <div class="section-divider mb-8"></div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-sm text-zinc-600">
+        Built by <span class="text-zinc-500 font-medium">Muaz Ashraf</span>
+      </p>
+      <div class="flex items-center gap-4 text-xs text-zinc-700 font-medium">
+        <span>LangGraph</span>
+        <span class="text-zinc-800">/</span>
+        <span>GPT-4o-mini</span>
+        <span class="text-zinc-800">/</span>
+        <span>Flask</span>
+        <span class="text-zinc-800">/</span>
+        <span>Tailwind</span>
+      </div>
+    </div>
+  </footer>
+
+<!-- AOS JS -->
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+<script>
+  AOS.init({
+    once: true,
+    easing: 'ease-out-cubic',
+    offset: 60,
+  });
+</script>
 
 <script>
 // =====================================================================
@@ -357,13 +439,13 @@ function renderPipelineBar() {
     node.className = 'flex flex-col items-center gap-2 relative z-10';
     node.id = `node-${step.id}`;
     node.innerHTML = `
-      <div class="node-circle w-11 h-11 rounded-full bg-white/[0.05] border border-white/10
-                  flex items-center justify-center transition-all duration-500">
-        <svg class="w-5 h-5 text-slate-600 transition-colors duration-500 node-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="node-circle w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500"
+           style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);">
+        <svg class="w-5 h-5 text-zinc-600 transition-colors duration-500 node-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="${step.icon}"/>
         </svg>
       </div>
-      <span class="node-label text-[11px] font-medium text-slate-600 transition-colors duration-500 whitespace-nowrap">${step.label}</span>
+      <span class="node-label text-[11px] font-medium text-zinc-600 transition-colors duration-500 whitespace-nowrap">${step.label}</span>
     `;
     bar.appendChild(node);
 
@@ -387,30 +469,42 @@ function setPipelineState(stepIndex, state) {
   const label = node.querySelector('.node-label');
 
   // Reset
-  circle.classList.remove('node-active', 'bg-accent', 'bg-success', 'bg-danger', 'border-accent', 'border-success', 'border-danger', 'bg-white/[0.05]');
-  circle.classList.add('bg-white/[0.05]');
+  circle.classList.remove('node-active');
+  circle.style.background = 'rgba(255,255,255,0.04)';
+  circle.style.borderColor = 'rgba(255,255,255,0.07)';
 
   if (state === 'active') {
-    circle.classList.remove('bg-white/[0.05]');
-    circle.classList.add('node-active', 'bg-accent/20', 'border-accent');
-    icon.className = 'w-5 h-5 text-accent transition-colors duration-500 node-icon';
-    label.className = 'node-label text-[11px] font-medium text-accent transition-colors duration-500 whitespace-nowrap';
+    circle.classList.add('node-active');
+    circle.style.background = 'rgba(96,165,250,0.15)';
+    circle.style.borderColor = 'rgba(96,165,250,0.5)';
+    icon.className = 'w-5 h-5 transition-colors duration-500 node-icon';
+    icon.style.color = '#60a5fa';
+    label.className = 'node-label text-[11px] font-medium transition-colors duration-500 whitespace-nowrap';
+    label.style.color = '#60a5fa';
   } else if (state === 'done') {
-    circle.classList.remove('bg-white/[0.05]', 'node-active');
-    circle.classList.add('bg-emerald-500/15', 'border-emerald-500/40');
-    icon.className = 'w-5 h-5 text-emerald-400 transition-colors duration-500 node-icon';
-    label.className = 'node-label text-[11px] font-medium text-emerald-400 transition-colors duration-500 whitespace-nowrap';
+    circle.classList.remove('node-active');
+    circle.style.background = 'rgba(52,211,153,0.1)';
+    circle.style.borderColor = 'rgba(52,211,153,0.3)';
+    icon.className = 'w-5 h-5 transition-colors duration-500 node-icon';
+    icon.style.color = '#34d399';
+    label.className = 'node-label text-[11px] font-medium transition-colors duration-500 whitespace-nowrap';
+    label.style.color = '#34d399';
     // Check icon
     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
   } else if (state === 'failed') {
-    circle.classList.remove('bg-white/[0.05]', 'node-active');
-    circle.classList.add('bg-danger/15', 'border-danger/40');
-    icon.className = 'w-5 h-5 text-danger transition-colors duration-500 node-icon';
-    label.className = 'node-label text-[11px] font-medium text-danger transition-colors duration-500 whitespace-nowrap';
+    circle.classList.remove('node-active');
+    circle.style.background = 'rgba(239,68,68,0.1)';
+    circle.style.borderColor = 'rgba(239,68,68,0.3)';
+    icon.className = 'w-5 h-5 transition-colors duration-500 node-icon';
+    icon.style.color = '#ef4444';
+    label.className = 'node-label text-[11px] font-medium transition-colors duration-500 whitespace-nowrap';
+    label.style.color = '#ef4444';
     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
   } else {
-    icon.className = 'w-5 h-5 text-slate-600 transition-colors duration-500 node-icon';
-    label.className = 'node-label text-[11px] font-medium text-slate-600 transition-colors duration-500 whitespace-nowrap';
+    icon.className = 'w-5 h-5 text-zinc-600 transition-colors duration-500 node-icon';
+    icon.style.color = '';
+    label.className = 'node-label text-[11px] font-medium text-zinc-600 transition-colors duration-500 whitespace-nowrap';
+    label.style.color = '';
     icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="${step.icon}"/>`;
   }
 
@@ -510,7 +604,7 @@ async function loadPODatabase() {
     poData = await res.json();
     renderPOTable(poData);
   } catch {
-    document.getElementById('po-table').innerHTML = '<p class="text-xs text-slate-600">Failed to load PO data.</p>';
+    document.getElementById('po-table').innerHTML = '<p class="text-xs text-zinc-600">Failed to load PO data.</p>';
   }
 }
 
@@ -519,15 +613,16 @@ function renderPOTable(data) {
   container.innerHTML = '';
   Object.entries(data).forEach(([po, info]) => {
     const row = document.createElement('div');
-    row.className = 'flex items-center justify-between py-2.5 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04]';
+    row.className = 'flex items-center justify-between py-2.5 px-3 rounded-lg';
+    row.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);';
     row.innerHTML = `
       <div>
         <span class="text-xs font-mono font-medium text-emerald-400">${po}</span>
-        <p class="text-[11px] text-slate-500 mt-0.5">${info.vendor} &middot; ${info.items}</p>
+        <p class="text-[11px] text-zinc-500 mt-0.5">${info.vendor} &middot; ${info.items}</p>
       </div>
       <div class="text-right">
-        <span class="text-xs font-semibold text-slate-300">$${Number(info.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-        <p class="text-[10px] text-slate-600 uppercase tracking-wide mt-0.5">${info.status}</p>
+        <span class="text-xs font-semibold text-zinc-300">$${Number(info.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+        <p class="text-[10px] text-zinc-600 uppercase tracking-wide mt-0.5">${info.status}</p>
       </div>
     `;
     container.appendChild(row);
@@ -570,17 +665,17 @@ function escapeHtml(str) {
 // =====================================================================
 function makeCard(title, iconPath, colorClass, content, stepId) {
   const card = document.createElement('div');
-  card.className = 'glass rounded-2xl overflow-hidden card-enter glow-hover transition-shadow duration-300';
+  card.className = 'ds-card ds-card-hover overflow-hidden card-enter transition-shadow duration-300';
   card.id = `result-${stepId}`;
   card.style.opacity = '0';
   card.innerHTML = `
-    <div class="px-6 py-4 border-b border-white/[0.04] flex items-center gap-3">
+    <div class="px-6 py-4 flex items-center gap-3" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
       <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"/>
         </svg>
       </div>
-      <h3 class="text-sm font-semibold text-slate-200">${title}</h3>
+      <h3 class="text-sm font-semibold text-zinc-200">${title}</h3>
     </div>
     <div class="px-6 py-5">${content}</div>
   `;
@@ -601,10 +696,10 @@ function confidenceBar(value, label) {
   return `
     <div class="mt-3">
       <div class="flex items-center justify-between mb-1.5">
-        <span class="text-[11px] text-slate-500 font-medium">${label}</span>
-        <span class="text-[11px] font-semibold text-slate-300">${pct}%</span>
+        <span class="text-[11px] text-zinc-500 font-medium">${label}</span>
+        <span class="text-[11px] font-semibold text-zinc-300">${pct}%</span>
       </div>
-      <div class="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+      <div class="h-1.5 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.06);">
         <div class="conf-bar-inner h-full rounded-full ${color}" style="width: 0%;" data-target="${pct}"></div>
       </div>
     </div>
@@ -623,7 +718,7 @@ function renderDuplicateCheck(data) {
     <div class="flex items-center gap-4">
       ${badgeHtml(pass ? 'No Duplicate Found' : 'Duplicate Detected', pass)}
     </div>
-    <p class="mt-3 text-sm text-slate-400">${escapeHtml(data.message || '')}</p>
+    <p class="mt-3 text-sm text-zinc-400">${escapeHtml(data.message || '')}</p>
   `;
   return makeCard('Duplicate Check', STEPS[1].icon, pass ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400', content, 'duplicate_check');
 }
@@ -651,7 +746,7 @@ function renderPOMatch(data) {
   let discrepHtml = '';
   if (data.discrepancies && data.discrepancies.length > 0) {
     discrepHtml = `<div class="mt-4 space-y-1.5">
-      <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-2">Discrepancies</p>
+      <p class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-2">Discrepancies</p>
       ${data.discrepancies.map(d =>
         `<div class="flex items-start gap-2 text-sm text-amber-400">
           <span class="w-1 h-1 rounded-full bg-amber-400 mt-2 flex-shrink-0"></span>
@@ -661,10 +756,10 @@ function renderPOMatch(data) {
   const content = `
     <div class="flex items-center gap-3 flex-wrap">
       ${badgeHtml(matched ? 'Matched' : 'No Match', matched)}
-      ${data.po_number ? `<span class="text-xs font-mono text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded-lg">${escapeHtml(data.po_number)}</span>` : ''}
+      ${data.po_number ? `<span class="text-xs font-mono text-zinc-400 px-2.5 py-1 rounded-lg" style="background: rgba(255,255,255,0.04);">${escapeHtml(data.po_number)}</span>` : ''}
     </div>
     ${data.match_confidence !== undefined ? confidenceBar(data.match_confidence, 'Match Confidence') : ''}
-    ${data.reasoning ? `<p class="mt-3 text-sm text-slate-400 leading-relaxed">${escapeHtml(data.reasoning)}</p>` : ''}
+    ${data.reasoning ? `<p class="mt-3 text-sm text-zinc-400 leading-relaxed">${escapeHtml(data.reasoning)}</p>` : ''}
     ${discrepHtml}
   `;
   return makeCard('PO Match', STEPS[3].icon, matched ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400', content, 'po_match');
@@ -687,24 +782,25 @@ function renderPaymentEntry(data) {
     <div class="grid grid-cols-2 gap-4">
       ${fields.filter(f => f.value && f.value !== 'N/A').map(f => `
         <div>
-          <p class="text-[10px] font-medium text-slate-600 uppercase tracking-wider mb-1">${f.label}</p>
-          <p class="${f.mono ? 'font-mono' : ''} ${f.highlight ? 'text-emerald-400 text-lg font-bold' : 'text-slate-200'} text-sm font-medium">
+          <p class="text-[10px] font-medium text-zinc-600 uppercase tracking-wider mb-1">${f.label}</p>
+          <p class="${f.mono ? 'font-mono' : ''} ${f.highlight ? 'text-emerald-400 text-lg font-bold' : 'text-zinc-200'} text-sm font-medium">
             ${escapeHtml(String(f.value))}
           </p>
         </div>
       `).join('')}
     </div>
     <button onclick="downloadPaymentSlip()"
-            class="mt-5 w-full h-11 rounded-xl bg-violet-600 text-white text-sm font-semibold
-                   hover:bg-violet-700 active:scale-[0.98] transition-all duration-200
-                   flex items-center justify-center gap-2">
+            class="mt-5 w-full h-11 rounded-xl text-white text-sm font-semibold
+                   hover:brightness-110 active:scale-[0.98] transition-all duration-200
+                   flex items-center justify-center gap-2"
+            style="background: #60a5fa;">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
       </svg>
       Download Payment Slip
     </button>
   `;
-  return makeCard('Payment Entry', STEPS[4].icon, 'bg-violet-500/15 text-violet-400', content, 'payment_entry');
+  return makeCard('Payment Entry', STEPS[4].icon, 'bg-blue-500/15 text-blue-400', content, 'payment_entry');
 }
 
 // =====================================================================
@@ -885,17 +981,17 @@ function switchTab(tab) {
   const poPanel = document.getElementById('panel-po');
 
   if (tab === 'po') {
-    poTab.classList.add('bg-emerald-500/15', 'text-emerald-400');
-    poTab.classList.remove('text-slate-500');
-    invoiceTab.classList.remove('bg-accent/15', 'text-accent');
-    invoiceTab.classList.add('text-slate-500');
+    poTab.classList.add('tab-active-green');
+    poTab.classList.remove('text-zinc-500');
+    invoiceTab.classList.remove('tab-active');
+    invoiceTab.classList.add('text-zinc-500');
     poPanel.classList.remove('hidden');
     invoicePanel.classList.add('hidden');
   } else {
-    invoiceTab.classList.add('bg-accent/15', 'text-accent');
-    invoiceTab.classList.remove('text-slate-500');
-    poTab.classList.remove('bg-emerald-500/15', 'text-emerald-400');
-    poTab.classList.add('text-slate-500');
+    invoiceTab.classList.add('tab-active');
+    invoiceTab.classList.remove('text-zinc-500');
+    poTab.classList.remove('tab-active-green');
+    poTab.classList.add('text-zinc-500');
     invoicePanel.classList.remove('hidden');
     poPanel.classList.add('hidden');
   }
