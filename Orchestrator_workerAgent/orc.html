@@ -1,69 +1,68 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Market Research Tool — Orchestrator-Worker Agent</title>
+
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            surface: {
-              50: '#f8fafc',
-              100: '#f1f5f9',
-              200: '#e2e8f0',
-              700: '#1a1f2e',
-              800: '#131825',
-              900: '#0c1018',
-              950: '#080b12',
-            },
-            accent: {
-              DEFAULT: '#3b82f6',
-              muted: '#1d4ed8',
-              glow: 'rgba(59,130,246,0.15)',
-            },
-            success: '#10b981',
-            danger: '#ef4444',
-            warn: '#f59e0b',
-          },
           fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
           },
         }
       }
     }
   </script>
+
+  <!-- Inter + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- AOS Library -->
+  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
+
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #09090b;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
 
-    /* Glassmorphism card */
-    .glass {
-      background: rgba(255,255,255,0.03);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.06);
+    /* Card base matching landing page */
+    .ds-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                  box-shadow 0.35s ease,
+                  border-color 0.35s ease;
     }
-    .glass-hover:hover {
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(255,255,255,0.1);
+    .ds-card-hover:hover {
+      border-color: rgba(52,211,153,0.2);
+      box-shadow: 0 0 40px rgba(52,211,153,0.06), 0 8px 32px rgba(0,0,0,0.3);
     }
 
     /* Pipeline node pulse */
     @keyframes nodePulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
-      50% { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(52,211,153,0); }
     }
     .node-active { animation: nodePulse 1.8s ease-in-out infinite; }
 
@@ -73,11 +72,11 @@
       100% { background-position: 200% 0; }
     }
     .line-active {
-      background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.6) 50%, rgba(59,130,246,0.1) 100%);
+      background: linear-gradient(90deg, rgba(52,211,153,0.1) 0%, rgba(52,211,153,0.6) 50%, rgba(52,211,153,0.1) 100%);
       background-size: 200% 100%;
       animation: lineFlow 1.5s linear infinite;
     }
-    .line-done { background: rgba(16,185,129,0.4); }
+    .line-done { background: rgba(52,211,153,0.4); }
     .line-idle { background: rgba(255,255,255,0.06); }
 
     /* Card entrance */
@@ -92,13 +91,10 @@
     .spinner {
       width: 18px; height: 18px;
       border: 2px solid rgba(255,255,255,0.15);
-      border-top-color: #3b82f6;
+      border-top-color: #34d399;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
-    /* Subtle glow on hover */
-    .glow-hover:hover { box-shadow: 0 0 30px rgba(59,130,246,0.08); }
 
     /* Fade in */
     @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
@@ -112,47 +108,75 @@
     }
     .badge-pop { animation: badgePop 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-    /* Markdown rendered content styles */
-    .md-content h2 { font-size: 1.15rem; font-weight: 700; color: #e2e8f0; margin: 1.2rem 0 0.6rem; }
-    .md-content h3 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 1rem 0 0.5rem; }
-    .md-content h4 { font-size: 0.9rem; font-weight: 600; color: #94a3b8; margin: 0.8rem 0 0.4rem; }
-    .md-content p { color: #94a3b8; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.6rem; }
+    /* Live pulse */
+    @keyframes breathe {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .live-pulse { animation: breathe 2.4s ease-in-out infinite; }
+
+    /* Markdown rendered content styles — emerald accent */
+    .md-content h2 { font-size: 1.15rem; font-weight: 700; color: #e4e4e7; margin: 1.2rem 0 0.6rem; }
+    .md-content h3 { font-size: 1rem; font-weight: 600; color: #d4d4d8; margin: 1rem 0 0.5rem; }
+    .md-content h4 { font-size: 0.9rem; font-weight: 600; color: #a1a1aa; margin: 0.8rem 0 0.4rem; }
+    .md-content p { color: #a1a1aa; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.6rem; }
     .md-content ul { list-style: none; padding-left: 0; margin: 0.5rem 0; }
-    .md-content ul li { position: relative; padding-left: 1.2rem; color: #94a3b8; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.25rem; }
-    .md-content ul li::before { content: ''; position: absolute; left: 0; top: 0.65rem; width: 5px; height: 5px; border-radius: 50%; background: #3b82f6; }
-    .md-content strong { color: #e2e8f0; font-weight: 600; }
-    .md-content a { color: #60a5fa; text-decoration: underline; text-underline-offset: 2px; }
-    .md-content a:hover { color: #93c5fd; }
+    .md-content ul li { position: relative; padding-left: 1.2rem; color: #a1a1aa; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.25rem; }
+    .md-content ul li::before { content: ''; position: absolute; left: 0; top: 0.65rem; width: 5px; height: 5px; border-radius: 50%; background: #34d399; }
+    .md-content strong { color: #e4e4e7; font-weight: 600; }
+    .md-content a { color: #6ee7b7; text-decoration: underline; text-underline-offset: 2px; }
+    .md-content a:hover { color: #a7f3d0; }
     .md-content hr { border: none; height: 1px; background: rgba(255,255,255,0.06); margin: 1rem 0; }
 
     /* Collapsible */
     .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16,1,0.3,1); }
     .collapsible-content.open { max-height: 2000px; }
+
+    /* Section divider */
+    .section-divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+    }
+
+    /* Tech pills */
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #71717a;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      letter-spacing: 0.02em;
+    }
   </style>
 </head>
-<body class="bg-surface-950 text-white min-h-screen antialiased">
+<body class="min-h-screen">
 
   <!-- =============== TOP NAV =============== -->
-  <nav class="sticky top-0 z-50 glass border-b border-white/5">
-    <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
+  <nav class="sticky top-0 z-50 border-b border-white/5" style="background: rgba(9,9,11,0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
       <a href="/"
-         class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors duration-200 group">
+         class="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors duration-200 group">
         <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
         All Agents
       </a>
       <div class="text-center">
-        <h1 class="text-base font-semibold tracking-tight">Market Research Tool</h1>
-        <p class="text-[11px] text-slate-500 font-medium tracking-wide uppercase">Orchestrator-Worker Agent</p>
+        <h1 class="text-base font-semibold tracking-tight text-white">Market Research Tool</h1>
+        <p class="text-[11px] font-semibold tracking-[0.15em] uppercase" style="color: #34d399;">Orchestrator-Worker Agent</p>
       </div>
       <div class="w-24"></div>
     </div>
   </nav>
 
   <!-- =============== FLOW VISUALIZATION =============== -->
-  <section class="max-w-[1600px] mx-auto px-6 pt-8 pb-4">
-    <div class="glass rounded-2xl px-8 py-6">
+  <section class="max-w-6xl mx-auto px-6 pt-8 pb-4" data-aos="fade-up" data-aos-duration="600">
+    <div class="ds-card px-8 py-6">
       <div class="flex items-center justify-between" id="pipeline-bar">
         <!-- Rendered by JS -->
       </div>
@@ -160,15 +184,15 @@
   </section>
 
   <!-- =============== MAIN CONTENT =============== -->
-  <main class="max-w-[1600px] mx-auto px-6 pb-12 flex gap-6" style="min-height: calc(100vh - 200px);">
+  <main class="max-w-6xl mx-auto px-6 pb-12 flex flex-col lg:flex-row gap-6" style="min-height: calc(100vh - 200px);">
 
     <!-- LEFT PANEL -->
-    <aside class="w-[380px] flex-shrink-0 flex flex-col gap-5">
+    <aside class="w-full lg:w-[380px] flex-shrink-0 flex flex-col gap-5">
 
       <!-- Input Card -->
-      <div class="glass rounded-2xl p-6 glow-hover transition-all duration-300">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-          <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="ds-card ds-card-hover p-6" data-aos="fade-up" data-aos-delay="100" data-aos-duration="600">
+        <h2 class="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4" style="color: #34d399;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
           Business Idea
@@ -176,43 +200,48 @@
 
         <textarea id="idea-input" rows="5"
                   placeholder="Describe your business idea... e.g. An AI-powered invoice processing tool for small businesses"
-                  class="w-full px-3 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors resize-none leading-relaxed"></textarea>
+                  class="w-full px-3 py-3 rounded-xl text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none transition-colors resize-none leading-relaxed"
+                  style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);"
+                  onfocus="this.style.borderColor='rgba(52,211,153,0.4)'"
+                  onblur="this.style.borderColor='rgba(255,255,255,0.07)'"
+        ></textarea>
 
         <!-- Start Research Button -->
         <button id="start-btn" disabled
                 onclick="startResearch()"
-                class="mt-4 w-full h-11 rounded-xl bg-accent text-white text-sm font-semibold
+                class="mt-4 w-full h-11 rounded-xl text-white text-sm font-semibold
                        disabled:opacity-30 disabled:cursor-not-allowed
-                       hover:bg-blue-600 active:scale-[0.98]
-                       transition-all duration-200 flex items-center justify-center gap-2">
+                       hover:brightness-110 active:scale-[0.98]
+                       transition-all duration-200 flex items-center justify-center gap-2"
+                style="background: #059669;">
           <span id="btn-text">Start Research</span>
           <div id="btn-spinner" class="spinner hidden"></div>
         </button>
 
         <!-- Processing Status -->
-        <div id="status-area" class="hidden mt-3 p-3 rounded-xl bg-accent/5 border border-accent/10">
+        <div id="status-area" class="hidden mt-3 p-3 rounded-xl" style="background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.1);">
           <div class="flex items-center gap-2">
             <div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>
-            <span id="status-text" class="text-xs text-accent font-medium">Orchestrator is planning research...</span>
+            <span id="status-text" class="text-xs font-medium" style="color: #34d399;">Orchestrator is planning research...</span>
           </div>
         </div>
 
         <!-- Error Display -->
-        <div id="error-area" class="hidden mt-3 p-3 rounded-xl bg-danger/10 border border-danger/20 text-sm text-red-400"></div>
+        <div id="error-area" class="hidden mt-3 p-3 rounded-xl text-sm text-red-400" style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);"></div>
       </div>
 
       <!-- Research Plan Card (hidden initially) -->
-      <div id="plan-card" class="hidden glass rounded-2xl overflow-hidden glow-hover transition-all duration-300 card-enter">
+      <div id="plan-card" class="hidden ds-card overflow-hidden ds-card-hover card-enter">
         <button id="plan-toggle" onclick="togglePlan()"
-                class="w-full px-6 py-4 flex items-center justify-between text-sm font-semibold text-slate-300 hover:text-white transition-colors">
+                class="w-full px-6 py-4 flex items-center justify-between text-sm font-semibold text-zinc-300 hover:text-white transition-colors">
           <span class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4" style="color: #34d399;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
             </svg>
             Research Plan
-            <span id="plan-count" class="ml-1 text-[10px] text-slate-500 font-mono"></span>
+            <span id="plan-count" class="ml-1 text-[10px] text-zinc-500 font-mono"></span>
           </span>
-          <svg id="plan-chevron" class="w-4 h-4 text-slate-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg id="plan-chevron" class="w-4 h-4 text-zinc-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
           </svg>
         </button>
@@ -227,14 +256,14 @@
     <section class="flex-1 min-w-0">
 
       <!-- Empty State -->
-      <div id="empty-state" class="flex flex-col items-center justify-center h-full text-center py-20">
-        <div class="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-6">
-          <svg class="w-10 h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div id="empty-state" class="flex flex-col items-center justify-center h-full text-center py-20" data-aos="fade-up" data-aos-delay="200" data-aos-duration="600">
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center mb-6" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+          <svg class="w-10 h-10 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
         </div>
-        <h3 class="text-lg font-semibold text-slate-500 mb-2">No research yet</h3>
-        <p class="text-sm text-slate-600 max-w-sm">Describe your business idea and hit "Start Research" to run the orchestrator-worker pipeline.</p>
+        <h3 class="text-lg font-semibold text-zinc-500 mb-2">No research yet</h3>
+        <p class="text-sm text-zinc-600 max-w-sm">Describe your business idea and hit "Start Research" to run the orchestrator-worker pipeline.</p>
       </div>
 
       <!-- Result Cards Container -->
@@ -242,6 +271,31 @@
 
     </section>
   </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="max-w-6xl mx-auto px-6 pb-12">
+    <div class="section-divider mb-8"></div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-sm text-zinc-600">
+        Built by <span class="text-zinc-500 font-medium">Muaz Ashraf</span>
+      </p>
+      <div class="flex items-center gap-3">
+        <span class="tech-pill">LangGraph</span>
+        <span class="tech-pill">GPT-4o-mini</span>
+        <span class="tech-pill">Flask</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- AOS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init({
+      once: true,
+      easing: 'ease-out-cubic',
+      offset: 60,
+    });
+  </script>
 
 <script>
 // =====================================================================
@@ -269,16 +323,16 @@ function renderPipelineBar() {
 
     var extraLabel = '';
     if (step.id === 'workers') {
-      extraLabel = '<span class="text-[9px] text-slate-600 font-mono">(parallel)</span>';
+      extraLabel = '<span class="text-[9px] text-zinc-600 font-mono">(parallel)</span>';
     }
 
     node.innerHTML =
-      '<div class="node-circle w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center transition-all duration-500">' +
-        '<svg class="w-5 h-5 text-slate-600 transition-colors duration-500 node-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+      '<div class="node-circle w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">' +
+        '<svg class="w-5 h-5 text-zinc-600 transition-colors duration-500 node-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
           '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="' + step.icon + '"/>' +
         '</svg>' +
       '</div>' +
-      '<span class="node-label text-[11px] font-medium text-slate-600 transition-colors duration-500 whitespace-nowrap flex flex-col items-center">' +
+      '<span class="node-label text-[11px] font-medium text-zinc-600 transition-colors duration-500 whitespace-nowrap flex flex-col items-center">' +
         step.label + extraLabel +
       '</span>';
     bar.appendChild(node);
@@ -300,29 +354,39 @@ function setFlowState(stepIndex, state) {
   var icon = node.querySelector('.node-icon');
   var labelEl = node.querySelector('.node-label');
 
-  // Reset circle classes
+  // Reset circle
   circle.className = 'node-circle w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500';
+  circle.removeAttribute('style');
 
   if (state === 'active') {
-    circle.classList.add('node-active', 'bg-accent/20', 'border', 'border-accent');
-    icon.className = 'w-5 h-5 text-accent transition-colors duration-500 node-icon';
+    circle.classList.add('node-active');
+    circle.style.background = 'rgba(52,211,153,0.15)';
+    circle.style.border = '1px solid #34d399';
+    icon.className = 'w-5 h-5 transition-colors duration-500 node-icon';
+    icon.style.color = '#34d399';
     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="' + step.icon + '"/>';
-    updateLabelColor(labelEl, 'text-accent');
+    updateLabelColor(labelEl, '#34d399');
   } else if (state === 'done') {
-    circle.classList.add('bg-emerald-500/15', 'border', 'border-emerald-500/40');
-    icon.className = 'w-5 h-5 text-emerald-400 transition-colors duration-500 node-icon';
+    circle.style.background = 'rgba(52,211,153,0.12)';
+    circle.style.border = '1px solid rgba(52,211,153,0.4)';
+    icon.className = 'w-5 h-5 transition-colors duration-500 node-icon';
+    icon.style.color = '#34d399';
     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
-    updateLabelColor(labelEl, 'text-emerald-400');
+    updateLabelColor(labelEl, '#34d399');
   } else if (state === 'failed') {
-    circle.classList.add('bg-danger/15', 'border', 'border-danger/40');
-    icon.className = 'w-5 h-5 text-red-400 transition-colors duration-500 node-icon';
+    circle.style.background = 'rgba(239,68,68,0.12)';
+    circle.style.border = '1px solid rgba(239,68,68,0.4)';
+    icon.className = 'w-5 h-5 transition-colors duration-500 node-icon';
+    icon.style.color = '#f87171';
     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
-    updateLabelColor(labelEl, 'text-red-400');
+    updateLabelColor(labelEl, '#f87171');
   } else {
-    circle.classList.add('bg-white/[0.05]', 'border', 'border-white/10');
-    icon.className = 'w-5 h-5 text-slate-600 transition-colors duration-500 node-icon';
+    circle.style.background = 'rgba(255,255,255,0.05)';
+    circle.style.border = '1px solid rgba(255,255,255,0.1)';
+    icon.className = 'w-5 h-5 text-zinc-600 transition-colors duration-500 node-icon';
+    icon.style.color = '';
     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="' + step.icon + '"/>';
-    updateLabelColor(labelEl, 'text-slate-600');
+    updateLabelColor(labelEl, '');
   }
 
   // Lines
@@ -337,9 +401,13 @@ function setFlowState(stepIndex, state) {
   }
 }
 
-function updateLabelColor(labelEl, colorClass) {
-  labelEl.classList.remove('text-slate-600', 'text-accent', 'text-emerald-400', 'text-red-400');
-  labelEl.classList.add(colorClass);
+function updateLabelColor(labelEl, color) {
+  if (color) {
+    labelEl.style.color = color;
+  } else {
+    labelEl.style.color = '';
+    labelEl.className = 'node-label text-[11px] font-medium text-zinc-600 transition-colors duration-500 whitespace-nowrap flex flex-col items-center';
+  }
 }
 
 function resetFlow() {
@@ -429,22 +497,23 @@ function showPlan(plan) {
 
   plan.forEach(function(section, i) {
     var el = document.createElement('div');
-    el.className = 'p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] fade-in';
+    el.className = 'p-3 rounded-lg fade-in';
+    el.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);';
     el.style.animationDelay = (i * 80) + 'ms';
 
     var queries = section.search_queries || section.queries || [];
     var queriesHtml = queries.length
       ? '<div class="mt-2 flex flex-wrap gap-1.5">' +
         queries.map(function(q) {
-          return '<span class="inline-block px-2 py-0.5 rounded-md bg-accent/[0.08] border border-accent/10 text-[10px] text-accent/70 font-mono">' + sanitize(q) + '</span>';
+          return '<span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-mono" style="background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.1); color: rgba(52,211,153,0.7);">' + sanitize(q) + '</span>';
         }).join('') + '</div>'
       : '';
 
     el.innerHTML =
       '<div class="flex items-start gap-2">' +
-        '<span class="flex-shrink-0 w-5 h-5 rounded-md bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-[10px] font-bold text-violet-400 mt-0.5">' + (i + 1) + '</span>' +
+        '<span class="flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold mt-0.5" style="background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); color: #34d399;">' + (i + 1) + '</span>' +
         '<div class="min-w-0">' +
-          '<p class="text-xs font-semibold text-slate-300">' + sanitize(section.title || section.name || 'Section ' + (i + 1)) + '</p>' +
+          '<p class="text-xs font-semibold text-zinc-300">' + sanitize(section.title || section.name || 'Section ' + (i + 1)) + '</p>' +
           queriesHtml +
         '</div>' +
       '</div>';
@@ -461,7 +530,7 @@ function showSectionResult(section, index) {
   var container = document.getElementById('results-container');
 
   var card = document.createElement('div');
-  card.className = 'glass rounded-2xl p-6 glow-hover transition-all duration-300 card-enter';
+  card.className = 'ds-card ds-card-hover p-6 card-enter';
   card.style.animationDelay = (index * 120) + 'ms';
 
   var sourcesHtml = '';
@@ -470,24 +539,24 @@ function showSectionResult(section, index) {
       if (typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'))) {
         var domain = '';
         try { domain = new URL(src).hostname.replace('www.', ''); } catch(e) { domain = src; }
-        return '<a href="' + src + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[11px] text-slate-500 hover:text-accent hover:border-accent/20 transition-colors">' +
+        return '<a href="' + src + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-zinc-500 hover:text-emerald-400 transition-colors" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">' +
           '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>' +
           domain + '</a>';
       }
-      return '<span class="inline-block px-2 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[11px] text-slate-500">' + sanitize(String(src)) + '</span>';
+      return '<span class="inline-block px-2 py-1 rounded-md text-[11px] text-zinc-500" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">' + sanitize(String(src)) + '</span>';
     }).join('');
 
     sourcesHtml =
-      '<div class="mt-4 pt-3 border-t border-white/[0.06]">' +
-        '<p class="text-[10px] uppercase tracking-wider text-slate-600 font-semibold mb-2">Sources</p>' +
+      '<div class="mt-4 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06);">' +
+        '<p class="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold mb-2">Sources</p>' +
         '<div class="flex flex-wrap gap-2">' + sourceItems + '</div>' +
       '</div>';
   }
 
   card.innerHTML =
     '<div class="flex items-center gap-3 mb-4">' +
-      '<div class="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-xs font-bold text-accent">' + (index + 1) + '</div>' +
-      '<h3 class="text-sm font-semibold text-slate-200">' + sanitize(section.title || section.name || 'Section ' + (index + 1)) + '</h3>' +
+      '<div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style="background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); color: #34d399;">' + (index + 1) + '</div>' +
+      '<h3 class="text-sm font-semibold text-zinc-200">' + sanitize(section.title || section.name || 'Section ' + (index + 1)) + '</h3>' +
     '</div>' +
     '<div class="md-content">' + renderMarkdown(section.content || section.text || '') + '</div>' +
     sourcesHtml;
@@ -502,23 +571,23 @@ function showFinalReport(report, idea) {
   var container = document.getElementById('results-container');
 
   var card = document.createElement('div');
-  card.className = 'glass rounded-2xl overflow-hidden glow-hover transition-all duration-300 card-enter';
-  card.style.borderColor = 'rgba(139,92,246,0.2)';
+  card.className = 'ds-card overflow-hidden ds-card-hover card-enter';
+  card.style.borderColor = 'rgba(52,211,153,0.25)';
 
   card.innerHTML =
-    '<div class="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">' +
+    '<div class="px-6 py-4 flex items-center justify-between" style="border-bottom: 1px solid rgba(255,255,255,0.06);">' +
       '<div class="flex items-center gap-3">' +
-        '<div class="w-9 h-9 rounded-lg bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">' +
-          '<svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+        '<div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.25);">' +
+          '<svg class="w-5 h-5" style="color: #34d399;" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
             '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>' +
           '</svg>' +
         '</div>' +
         '<div>' +
-          '<h3 class="text-sm font-bold text-slate-100">Final Research Report</h3>' +
-          '<p class="text-[11px] text-slate-500">Synthesized from all worker sections</p>' +
+          '<h3 class="text-sm font-bold text-zinc-100">Final Research Report</h3>' +
+          '<p class="text-[11px] text-zinc-500">Synthesized from all worker sections</p>' +
         '</div>' +
       '</div>' +
-      '<button onclick="downloadReport()" class="h-9 px-4 rounded-lg bg-violet-600/20 border border-violet-500/20 text-violet-400 text-xs font-semibold hover:bg-violet-600/30 transition-all duration-200 flex items-center gap-2">' +
+      '<button onclick="downloadReport()" class="h-9 px-4 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center gap-2" style="background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.2); color: #34d399;" onmouseover="this.style.background=\'rgba(52,211,153,0.25)\'" onmouseout="this.style.background=\'rgba(52,211,153,0.15)\'">' +
         '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
           '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>' +
         '</svg>' +
