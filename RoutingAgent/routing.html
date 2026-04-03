@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Customer Support — Routing Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- AOS Library -->
+  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #09090b;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+    /* Card base — matching landing page */
+    .ds-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                  box-shadow 0.35s ease,
+                  border-color 0.35s ease;
+    }
+
+    /* Nav bar */
+    .nav-bar {
+      background: rgba(9,9,11,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Live pulse */
+    @keyframes breathe {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .live-pulse { animation: breathe 2.4s ease-in-out infinite; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: #fbbf24;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* Card entrance */
+    @keyframes slideUp {
+      0% { opacity: 0; transform: translateY(24px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter { animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* Fade in */
+    @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+
+    /* Badge pop */
+    @keyframes badgePop {
+      0% { transform: scale(0.7); opacity: 0; }
+      60% { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .badge-pop { animation: badgePop 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* Confidence bar */
+    .conf-bar-inner { transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+
+    /* Input focus ring — amber */
+    .ds-input {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .ds-input:focus {
+      outline: none;
+      border-color: rgba(251,191,36,0.5);
+      box-shadow: 0 0 0 3px rgba(251,191,36,0.08);
+    }
+
+    /* Tech pills — matching landing page */
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #71717a;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      letter-spacing: 0.02em;
+    }
+
+    /* Node pulse — amber */
+    @keyframes nodePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(251,191,36,0); }
+    }
+    .node-active { animation: nodePulse 1.8s ease-in-out infinite; }
+
+    /* Connecting line animation */
+    @keyframes lineFlow {
+      0% { background-position: 0% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .line-active {
+      background: linear-gradient(90deg, rgba(251,191,36,0.1) 0%, rgba(251,191,36,0.6) 50%, rgba(251,191,36,0.1) 100%);
+      background-size: 200% 100%;
+      animation: lineFlow 1.5s linear infinite;
+    }
+    .line-done { background: rgba(52,211,153,0.4); }
+    .line-idle { background: rgba(255,255,255,0.06); }
+
+    /* Sample chip */
+    .sample-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #a1a1aa;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sample-chip:hover {
+      color: #fbbf24;
+      border-color: rgba(251,191,36,0.3);
+      background: rgba(251,191,36,0.06);
+    }
+
+    /* Category badge colors */
+    .cat-billing { background: rgba(96,165,250,0.12); color: #60a5fa; border-color: rgba(96,165,250,0.25); }
+    .cat-technical { background: rgba(52,211,153,0.12); color: #34d399; border-color: rgba(52,211,153,0.25); }
+    .cat-refund { background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.25); }
+    .cat-account { background: rgba(167,139,250,0.12); color: #a78bfa; border-color: rgba(167,139,250,0.25); }
+    .cat-general { background: rgba(251,191,36,0.12); color: #fbbf24; border-color: rgba(251,191,36,0.25); }
+
+    /* Section divider */
+    .section-divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+    }
+
+    /* Markdown rendered content */
+    .md-content h3 { font-size: 16px; font-weight: 600; color: #e4e4e7; margin: 16px 0 8px; }
+    .md-content p { color: #a1a1aa; font-size: 14px; line-height: 1.7; margin-bottom: 10px; }
+    .md-content strong { color: #e4e4e7; font-weight: 600; }
+    .md-content ul, .md-content ol { padding-left: 20px; margin-bottom: 10px; }
+    .md-content li { color: #a1a1aa; font-size: 14px; line-height: 1.7; margin-bottom: 4px; }
+    .md-content ol { list-style: decimal; }
+    .md-content ul { list-style: disc; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- ===== NAV BAR ===== -->
+  <nav class="nav-bar fixed top-0 left-0 right-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/" class="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors duration-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+          </svg>
+          <span class="text-sm font-medium">Back</span>
+        </a>
+        <div class="w-px h-5 bg-zinc-800"></div>
+        <div>
+          <h1 class="text-sm font-semibold text-white leading-none">Smart Customer Support</h1>
+          <p class="text-[11px] text-amber-400 font-medium tracking-wide mt-0.5">Routing Agent</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-2 text-xs font-medium text-emerald-400">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 live-pulse"></span>
+          Live
+        </span>
+        <span class="tech-pill">LangGraph</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== FLOW VISUALIZATION ===== -->
+  <section class="pt-24 pb-6 max-w-7xl mx-auto px-6" data-aos="fade-up" data-aos-duration="500">
+    <div class="ds-card p-5">
+      <p class="text-[11px] font-semibold tracking-[0.15em] uppercase text-zinc-500 mb-4">Processing Pipeline</p>
+
+      <!-- 2-Step Flow -->
+      <div class="flex items-center justify-center gap-0">
+        <!-- Step 1: Classify -->
+        <div class="flex flex-col items-center">
+          <div id="node-classify" class="w-10 h-10 rounded-xl border border-zinc-700 bg-zinc-900 flex items-center justify-center transition-all duration-300">
+            <svg class="w-4.5 h-4.5 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z"/>
+            </svg>
+          </div>
+          <span class="text-[11px] font-medium text-zinc-500 mt-2">Classify</span>
+        </div>
+
+        <!-- Line -->
+        <div id="line-1" class="w-20 sm:w-32 h-0.5 rounded-full line-idle mx-3 transition-all duration-300"></div>
+
+        <!-- Step 2: Specialist Handler -->
+        <div class="flex flex-col items-center">
+          <div id="node-specialist" class="w-10 h-10 rounded-xl border border-zinc-700 bg-zinc-900 flex items-center justify-center transition-all duration-300">
+            <svg class="w-4.5 h-4.5 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
+            </svg>
+          </div>
+          <span class="text-[11px] font-medium text-zinc-500 mt-2">Specialist</span>
+        </div>
+      </div>
+
+      <!-- Category badges row -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mt-5 pt-4 border-t border-zinc-800/60">
+        <span class="text-[11px] text-zinc-600 font-medium mr-1">Routes:</span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold border cat-billing">Billing</span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold border cat-technical">Technical</span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold border cat-refund">Refund</span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold border cat-account">Account</span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold border cat-general">General</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="max-w-7xl mx-auto px-6 pb-24">
+    <div class="flex flex-col lg:flex-row gap-5">
+
+      <!-- LEFT PANEL — Query Input -->
+      <div class="w-full lg:w-[380px] flex-shrink-0" data-aos="fade-up" data-aos-delay="100" data-aos-duration="500">
+        <div class="ds-card p-6 sticky top-24">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-1 h-4 rounded-full bg-amber-400"></div>
+            <h2 class="text-sm font-semibold text-white">Customer Query</h2>
+          </div>
+          <p class="text-[12px] text-zinc-500 mb-4 ml-3">Enter a support query to classify and route</p>
+
+          <!-- Textarea -->
+          <textarea
+            id="queryInput"
+            class="ds-input w-full rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 resize-none font-normal"
+            rows="4"
+            placeholder="Type a customer query... e.g. 'I was charged twice for my subscription last month'"
+          ></textarea>
+
+          <!-- Sample chips -->
+          <div class="mt-3 mb-4">
+            <p class="text-[11px] text-zinc-600 font-medium mb-2">Try a sample:</p>
+            <div class="flex flex-wrap gap-2">
+              <button class="sample-chip" onclick="fillSample(this)">I was charged twice last month</button>
+              <button class="sample-chip" onclick="fillSample(this)">How do I connect the API?</button>
+              <button class="sample-chip" onclick="fillSample(this)">I want a full refund</button>
+              <button class="sample-chip" onclick="fillSample(this)">I can't login to my account</button>
+              <button class="sample-chip" onclick="fillSample(this)">What features do you offer?</button>
+            </div>
+          </div>
+
+          <!-- Send button -->
+          <button
+            id="sendBtn"
+            onclick="sendQuery()"
+            class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200
+                   bg-amber-400/10 text-amber-400 border border-amber-400/20 hover:bg-amber-400/20 hover:border-amber-400/30
+                   disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg id="sendIcon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.126A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.876L5.999 12Zm0 0h7.5"/>
+            </svg>
+            <span id="sendText">Send Query</span>
+            <div id="sendSpinner" class="spinner hidden"></div>
+          </button>
+
+          <!-- Error display -->
+          <div id="errorBox" class="hidden mt-3 p-3 rounded-xl bg-red-500/8 border border-red-500/15 text-red-400 text-xs"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL — Results -->
+      <div class="flex-1 min-w-0" data-aos="fade-up" data-aos-delay="200" data-aos-duration="500">
+
+        <!-- Empty state -->
+        <div id="emptyState" class="ds-card p-12 flex flex-col items-center justify-center text-center min-h-[420px]">
+          <div class="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">
+            <svg class="w-7 h-7 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.399-.52c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-semibold text-zinc-400 mb-2">No query sent yet</h3>
+          <p class="text-sm text-zinc-600 max-w-xs">Type a customer support query or click a sample to see how the routing agent classifies and responds.</p>
+        </div>
+
+        <!-- Results container (hidden until response) -->
+        <div id="resultsContainer" class="hidden space-y-5">
+
+          <!-- Classification Card -->
+          <div id="classificationCard" class="ds-card p-6 card-enter">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-1 h-4 rounded-full bg-amber-400"></div>
+              <h2 class="text-sm font-semibold text-white">Classification</h2>
+            </div>
+
+            <!-- Category badge -->
+            <div class="flex items-center gap-3 mb-4">
+              <span id="catBadge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border badge-pop">
+                <span id="catDot" class="w-2 h-2 rounded-full"></span>
+                <span id="catLabel"></span>
+              </span>
+              <span id="confPercent" class="text-xs font-mono text-zinc-400"></span>
+            </div>
+
+            <!-- Confidence bar -->
+            <div class="w-full h-1.5 rounded-full bg-zinc-800/80 mb-4 overflow-hidden">
+              <div id="confBar" class="conf-bar-inner h-full rounded-full" style="width:0%"></div>
+            </div>
+
+            <!-- Reasoning -->
+            <div class="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800/50">
+              <p class="text-[11px] font-semibold tracking-[0.12em] uppercase text-zinc-600 mb-2">Reasoning</p>
+              <p id="reasoningText" class="text-sm text-zinc-400 leading-relaxed"></p>
+            </div>
+          </div>
+
+          <!-- Specialist Response Card -->
+          <div id="specialistCard" class="ds-card p-6 card-enter" style="animation-delay: 0.15s;">
+            <div class="flex items-center gap-2 mb-1">
+              <div id="specialistAccent" class="w-1 h-4 rounded-full"></div>
+              <h2 id="specialistName" class="text-sm font-semibold text-white"></h2>
+            </div>
+            <p class="text-[12px] text-zinc-500 mb-4 ml-3">Specialist response</p>
+
+            <div class="section-divider mb-4"></div>
+
+            <div id="responseContent" class="md-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="max-w-7xl mx-auto px-6 pb-12">
+    <div class="section-divider mb-8"></div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-sm text-zinc-600">
+        Built by <span class="text-zinc-500 font-medium">Muaz Ashraf</span>
+      </p>
+      <div class="flex items-center gap-4 text-xs text-zinc-700 font-medium">
+        <span>LangGraph</span>
+        <span class="text-zinc-800">/</span>
+        <span>GPT-4o-mini</span>
+        <span class="text-zinc-800">/</span>
+        <span>Flask</span>
+        <span class="text-zinc-800">/</span>
+        <span>Tailwind</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- AOS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <!-- DOMPurify -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
+  <script>
+    AOS.init({ once: true, easing: 'ease-out-cubic', offset: 60 });
+
+    /* ============================
+       Category color map
+    ============================ */
+    const CAT_COLORS = {
+      billing:   { bg: 'cat-billing',   dot: '#60a5fa', bar: '#60a5fa', accent: '#60a5fa' },
+      technical: { bg: 'cat-technical',  dot: '#34d399', bar: '#34d399', accent: '#34d399' },
+      refund:    { bg: 'cat-refund',     dot: '#f87171', bar: '#f87171', accent: '#f87171' },
+      account:   { bg: 'cat-account',    dot: '#a78bfa', bar: '#a78bfa', accent: '#a78bfa' },
+      general:   { bg: 'cat-general',    dot: '#fbbf24', bar: '#fbbf24', accent: '#fbbf24' },
+    };
+
+    /* ============================
+       Fill sample query
+    ============================ */
+    function fillSample(el) {
+      document.getElementById('queryInput').value = el.textContent.trim();
+      document.getElementById('queryInput').focus();
+    }
+
+    /* ============================
+       Simple Markdown renderer
+    ============================ */
+    function renderMarkdown(text) {
+      if (!text) return '';
+      let html = text
+        // Headers ## -> h3
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+        // Bold
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        // Italic
+        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+      // Process blocks
+      const lines = html.split('\n');
+      let result = '';
+      let inUl = false, inOl = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const ulMatch = line.match(/^- (.+)$/);
+        const olMatch = line.match(/^(\d+)\. (.+)$/);
+
+        if (ulMatch) {
+          if (!inUl) { result += '<ul>'; inUl = true; }
+          result += '<li>' + ulMatch[1] + '</li>';
+        } else if (olMatch) {
+          if (!inOl) { result += '<ol>'; inOl = true; }
+          result += '<li>' + olMatch[2] + '</li>';
+        } else {
+          if (inUl) { result += '</ul>'; inUl = false; }
+          if (inOl) { result += '</ol>'; inOl = false; }
+          const trimmed = line.trim();
+          if (trimmed.startsWith('<h3>')) {
+            result += trimmed;
+          } else if (trimmed === '') {
+            // skip empty
+          } else {
+            result += '<p>' + trimmed + '</p>';
+          }
+        }
+      }
+      if (inUl) result += '</ul>';
+      if (inOl) result += '</ol>';
+
+      return result;
+    }
+
+    /* ============================
+       Pipeline node states
+    ============================ */
+    function setNodeState(nodeId, state) {
+      const el = document.getElementById(nodeId);
+      el.classList.remove('node-active');
+      el.style.borderColor = '';
+      el.style.background = '';
+
+      if (state === 'active') {
+        el.classList.add('node-active');
+        el.style.borderColor = 'rgba(251,191,36,0.5)';
+        el.style.background = 'rgba(251,191,36,0.08)';
+        el.querySelector('svg').style.color = '#fbbf24';
+      } else if (state === 'done') {
+        el.style.borderColor = 'rgba(52,211,153,0.4)';
+        el.style.background = 'rgba(52,211,153,0.06)';
+        el.querySelector('svg').style.color = '#34d399';
+      } else {
+        el.style.borderColor = '';
+        el.style.background = '';
+        el.querySelector('svg').style.color = '#71717a';
+      }
+    }
+
+    function setLineState(lineId, state) {
+      const el = document.getElementById(lineId);
+      el.classList.remove('line-active', 'line-done', 'line-idle');
+      el.classList.add('line-' + state);
+    }
+
+    function resetPipeline() {
+      setNodeState('node-classify', 'idle');
+      setNodeState('node-specialist', 'idle');
+      setLineState('line-1', 'idle');
+    }
+
+    /* ============================
+       Send Query
+    ============================ */
+    async function sendQuery() {
+      const input = document.getElementById('queryInput');
+      const query = input.value.trim();
+      if (!query) return;
+
+      const sendBtn = document.getElementById('sendBtn');
+      const sendIcon = document.getElementById('sendIcon');
+      const sendText = document.getElementById('sendText');
+      const sendSpinner = document.getElementById('sendSpinner');
+      const errorBox = document.getElementById('errorBox');
+      const emptyState = document.getElementById('emptyState');
+      const resultsContainer = document.getElementById('resultsContainer');
+
+      // Reset
+      sendBtn.disabled = true;
+      sendIcon.classList.add('hidden');
+      sendText.textContent = 'Processing...';
+      sendSpinner.classList.remove('hidden');
+      errorBox.classList.add('hidden');
+      resultsContainer.classList.add('hidden');
+      emptyState.classList.remove('hidden');
+
+      // Pipeline: Classify step
+      resetPipeline();
+      setNodeState('node-classify', 'active');
+      setLineState('line-1', 'active');
+
+      try {
+        const resp = await fetch('/support/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.error || 'Failed to process query');
+        }
+
+        // Pipeline: Classify done, Specialist done
+        setNodeState('node-classify', 'done');
+        setLineState('line-1', 'done');
+        setNodeState('node-specialist', 'done');
+
+        // Show results
+        emptyState.classList.add('hidden');
+        resultsContainer.classList.remove('hidden');
+
+        // Category
+        const cat = (data.category || 'general').toLowerCase();
+        const colors = CAT_COLORS[cat] || CAT_COLORS.general;
+
+        const catBadge = document.getElementById('catBadge');
+        const catDot = document.getElementById('catDot');
+        const catLabel = document.getElementById('catLabel');
+        const confPercent = document.getElementById('confPercent');
+        const confBar = document.getElementById('confBar');
+
+        // Clear old classes
+        catBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border badge-pop ' + colors.bg;
+        catDot.style.background = colors.dot;
+        catLabel.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+
+        const conf = Math.round((data.confidence || 0) * 100);
+        confPercent.textContent = conf + '% confidence';
+        confBar.style.width = '0%';
+        confBar.style.background = colors.bar;
+        requestAnimationFrame(function() {
+          confBar.style.width = conf + '%';
+        });
+
+        // Reasoning
+        document.getElementById('reasoningText').textContent = data.reasoning || 'No reasoning provided.';
+
+        // Specialist
+        var specialistAccent = document.getElementById('specialistAccent');
+        specialistAccent.style.background = colors.accent;
+
+        var specialistName = document.getElementById('specialistName');
+        specialistName.textContent = data.specialist || (cat.charAt(0).toUpperCase() + cat.slice(1) + ' Specialist');
+
+        // Render response as markdown, sanitize with DOMPurify
+        var raw = data.response || 'No response generated.';
+        var rendered = renderMarkdown(raw);
+        document.getElementById('responseContent').innerHTML = DOMPurify.sanitize(rendered);
+
+      } catch (err) {
+        resetPipeline();
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+      } finally {
+        sendBtn.disabled = false;
+        sendIcon.classList.remove('hidden');
+        sendText.textContent = 'Send Query';
+        sendSpinner.classList.add('hidden');
+      }
+    }
+
+    // Allow Ctrl/Cmd+Enter to send
+    document.getElementById('queryInput').addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        sendQuery();
+      }
+    });
+
+    // Production console cleanup
+    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      console.log = function() {};
+      console.debug = function() {};
+      console.info = function() {};
+    }
+  </script>
+</body>
+</html>
