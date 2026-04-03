@@ -1,70 +1,78 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Tutor — Evaluator-Optimizer Agent</title>
+  <meta name="description" content="Learn any concept with visual diagrams, take quizzes, and get adaptive re-explanations until you master it." />
+
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            surface: {
-              50: '#f8fafc',
-              100: '#f1f5f9',
-              200: '#e2e8f0',
-              700: '#1a1f2e',
-              800: '#131825',
-              900: '#0c1018',
-              950: '#080b12',
-            },
-            accent: {
-              DEFAULT: '#3b82f6',
-              muted: '#1d4ed8',
-              glow: 'rgba(59,130,246,0.15)',
-            },
-            success: '#10b981',
-            danger: '#ef4444',
-            warn: '#f59e0b',
-          },
           fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
           },
         }
       }
     }
   </script>
+
+  <!-- Inter + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- AOS Library -->
+  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
+
+  <!-- Mermaid.js -->
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #09090b;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
 
-    /* Glassmorphism card */
-    .glass {
-      background: rgba(255,255,255,0.03);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.06);
+    /* Card base — matches landing page */
+    .ds-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      transition: box-shadow 0.35s ease, border-color 0.35s ease;
     }
-    .glass-hover:hover {
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(255,255,255,0.1);
+    .ds-card-hover:hover {
+      border-color: rgba(255,255,255,0.12);
+      box-shadow: 0 0 60px rgba(167,139,250,0.06), 0 8px 40px rgba(0,0,0,0.3);
     }
 
-    /* Pipeline node pulse */
+    /* Nav glass */
+    .nav-glass {
+      background: rgba(9,9,11,0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Pipeline node pulse — violet accent */
     @keyframes nodePulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
-      50% { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(167,139,250,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(167,139,250,0); }
     }
     .node-active { animation: nodePulse 1.8s ease-in-out infinite; }
 
@@ -74,7 +82,7 @@
       100% { background-position: 200% 0; }
     }
     .line-active {
-      background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.6) 50%, rgba(59,130,246,0.1) 100%);
+      background: linear-gradient(90deg, rgba(167,139,250,0.1) 0%, rgba(167,139,250,0.6) 50%, rgba(167,139,250,0.1) 100%);
       background-size: 200% 100%;
       animation: lineFlow 1.5s linear infinite;
     }
@@ -88,24 +96,21 @@
     }
     .card-enter { animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-    /* Spinner */
+    /* Spinner — violet */
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
       width: 18px; height: 18px;
-      border: 2px solid rgba(255,255,255,0.15);
-      border-top-color: #3b82f6;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: #a78bfa;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
-    /* Subtle glow on hover */
-    .glow-hover:hover { box-shadow: 0 0 30px rgba(59,130,246,0.08); }
 
     /* Fade in */
     @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
     .fade-in { animation: fadeIn 0.4s ease forwards; }
 
-    /* Badge pulse for success/fail */
+    /* Badge pop */
     @keyframes badgePop {
       0% { transform: scale(0.7); opacity: 0; }
       60% { transform: scale(1.08); }
@@ -113,25 +118,25 @@
     }
     .badge-pop { animation: badgePop 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-    /* Quiz option hover */
+    /* Quiz option — card-style clickable */
     .quiz-option {
       transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
       cursor: pointer;
     }
     .quiz-option:hover {
-      background: rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.05);
       border-color: rgba(255,255,255,0.12);
     }
     .quiz-option.selected {
-      background: rgba(59,130,246,0.1);
-      border-color: rgba(59,130,246,0.4);
+      background: rgba(167,139,250,0.08);
+      border-color: rgba(167,139,250,0.4);
     }
     .quiz-option.correct {
-      background: rgba(16,185,129,0.1);
+      background: rgba(16,185,129,0.08);
       border-color: rgba(16,185,129,0.4);
     }
     .quiz-option.incorrect {
-      background: rgba(239,68,68,0.08);
+      background: rgba(239,68,68,0.06);
       border-color: rgba(239,68,68,0.3);
     }
 
@@ -140,18 +145,15 @@
       transition: all 0.2s ease;
     }
     .diff-btn.active {
-      background: rgba(59,130,246,0.15);
-      color: #3b82f6;
-      border-color: rgba(59,130,246,0.3);
+      background: rgba(167,139,250,0.12);
+      color: #a78bfa;
+      border-color: rgba(167,139,250,0.3);
     }
 
     /* Score ring */
-    @keyframes scoreReveal {
-      0% { stroke-dashoffset: 283; }
-    }
     .score-ring { transition: stroke-dashoffset 1.2s cubic-bezier(0.16,1,0.3,1); }
 
-    /* Confetti-like particles */
+    /* Confetti particles */
     @keyframes confettiFloat {
       0% { transform: translateY(0) rotate(0deg); opacity: 1; }
       100% { transform: translateY(-60px) rotate(720deg); opacity: 0; }
@@ -177,87 +179,119 @@
     .slide-down { animation: slideDown 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
 
     /* Attempt dot */
-    .attempt-dot {
-      transition: all 0.3s ease;
+    .attempt-dot { transition: all 0.3s ease; }
+
+    /* Accent line */
+    .accent-line {
+      width: 40px;
+      height: 3px;
+      border-radius: 2px;
+      background: #a78bfa;
+    }
+
+    /* Live pulse — from landing page */
+    @keyframes breathe {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .live-pulse { animation: breathe 2.4s ease-in-out infinite; }
+
+    /* Section divider */
+    .section-divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+    }
+
+    /* Tech pill */
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #71717a;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      letter-spacing: 0.02em;
     }
   </style>
 </head>
-<body class="bg-surface-950 text-white min-h-screen antialiased">
+<body class="min-h-screen">
 
   <!-- =============== TOP NAV =============== -->
-  <nav class="sticky top-0 z-50 glass border-b border-white/5">
-    <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
+  <nav class="sticky top-0 z-50 nav-glass">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
       <a href="/"
-         class="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors duration-200 group">
+         class="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors duration-200 group">
         <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
         All Agents
       </a>
       <div class="text-center">
-        <h1 class="text-base font-semibold tracking-tight">AI Tutor</h1>
-        <p class="text-[11px] text-slate-500 font-medium tracking-wide uppercase">Evaluator-Optimizer Agent</p>
+        <h1 class="text-base font-semibold tracking-tight text-white">AI Tutor</h1>
+        <p class="text-[11px] font-semibold tracking-[0.15em] uppercase" style="color: #a78bfa;">Evaluator-Optimizer Agent</p>
       </div>
       <div class="w-24"></div>
     </div>
   </nav>
 
   <!-- =============== FLOW VISUALIZATION =============== -->
-  <section class="max-w-[1600px] mx-auto px-6 pt-8 pb-4">
-    <div class="glass rounded-2xl px-8 py-6">
-      <div class="flex items-center justify-center gap-0" id="flow-bar">
+  <section class="max-w-6xl mx-auto px-6 pt-8 pb-4" data-aos="fade-up" data-aos-duration="600">
+    <div class="ds-card px-8 py-6">
+      <div class="flex items-center justify-center gap-0 flex-wrap" id="flow-bar">
         <!-- Step 1: Teach -->
         <div class="flex items-center gap-0">
-          <div id="flow-teach" class="flow-node flex items-center gap-3 px-5 py-3 rounded-xl border border-white/10 bg-white/[0.02] transition-all duration-300">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/10 transition-all duration-300" id="flow-teach-icon">
-              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div id="flow-teach" class="flow-node flex items-center gap-3 px-5 py-3 rounded-xl border border-white/[0.07] bg-white/[0.02] transition-all duration-300">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.07] transition-all duration-300" id="flow-teach-icon">
+              <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
               </svg>
             </div>
             <div>
-              <p class="text-xs font-semibold text-slate-400 transition-colors" id="flow-teach-label">Teach</p>
-              <p class="text-[10px] text-slate-600">Explain topic</p>
+              <p class="text-xs font-semibold text-zinc-400 transition-colors" id="flow-teach-label">Teach</p>
+              <p class="text-[10px] text-zinc-600">Explain topic</p>
             </div>
           </div>
-          <!-- Line: Teach -> Quiz -->
           <div id="line-teach-quiz" class="w-16 h-[2px] line-idle transition-all duration-300"></div>
         </div>
 
         <!-- Step 2: Quiz -->
         <div class="flex items-center gap-0">
-          <div id="flow-quiz" class="flow-node flex items-center gap-3 px-5 py-3 rounded-xl border border-white/10 bg-white/[0.02] transition-all duration-300">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/10 transition-all duration-300" id="flow-quiz-icon">
-              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div id="flow-quiz" class="flow-node flex items-center gap-3 px-5 py-3 rounded-xl border border-white/[0.07] bg-white/[0.02] transition-all duration-300">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.07] transition-all duration-300" id="flow-quiz-icon">
+              <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
             <div>
-              <p class="text-xs font-semibold text-slate-400 transition-colors" id="flow-quiz-label">Quiz</p>
-              <p class="text-[10px] text-slate-600">Test knowledge</p>
+              <p class="text-xs font-semibold text-zinc-400 transition-colors" id="flow-quiz-label">Quiz</p>
+              <p class="text-[10px] text-zinc-600">Test knowledge</p>
             </div>
           </div>
-          <!-- Line: Quiz -> Evaluate -->
           <div id="line-quiz-eval" class="w-16 h-[2px] line-idle transition-all duration-300"></div>
         </div>
 
         <!-- Step 3: Evaluate -->
         <div class="flex items-center gap-0">
-          <div id="flow-eval" class="flow-node flex items-center gap-3 px-5 py-3 rounded-xl border border-white/10 bg-white/[0.02] transition-all duration-300">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/10 transition-all duration-300" id="flow-eval-icon">
-              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div id="flow-eval" class="flow-node flex items-center gap-3 px-5 py-3 rounded-xl border border-white/[0.07] bg-white/[0.02] transition-all duration-300">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.07] transition-all duration-300" id="flow-eval-icon">
+              <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
             <div>
-              <p class="text-xs font-semibold text-slate-400 transition-colors" id="flow-eval-label">Evaluate</p>
-              <p class="text-[10px] text-slate-600">Grade & decide</p>
+              <p class="text-xs font-semibold text-zinc-400 transition-colors" id="flow-eval-label">Evaluate</p>
+              <p class="text-[10px] text-zinc-600">Grade & decide</p>
             </div>
           </div>
         </div>
 
         <!-- Loop arrow -->
         <div class="ml-4 flex items-center" id="loop-indicator">
-          <svg width="60" height="40" viewBox="0 0 60 40" class="text-slate-600 transition-colors duration-300" id="loop-arrow-svg">
+          <svg width="60" height="40" viewBox="0 0 60 40" class="text-zinc-600 transition-colors duration-300" id="loop-arrow-svg">
             <path d="M5 20 C5 8, 55 8, 55 20" stroke="currentColor" fill="none" stroke-width="1.5" stroke-dasharray="4 3"/>
             <path d="M50 16 L55 20 L50 24" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <text x="30" y="38" text-anchor="middle" fill="currentColor" font-size="9" font-family="Inter">retry</text>
@@ -268,40 +302,43 @@
   </section>
 
   <!-- =============== MAIN CONTENT =============== -->
-  <main class="max-w-[1600px] mx-auto px-6 pb-12 flex gap-6" style="min-height: calc(100vh - 240px);">
+  <main class="max-w-6xl mx-auto px-6 pb-12 flex flex-col lg:flex-row gap-6" style="min-height: calc(100vh - 240px);">
 
     <!-- LEFT PANEL -->
-    <aside class="w-[380px] flex-shrink-0 flex flex-col gap-5">
+    <aside class="w-full lg:w-[380px] flex-shrink-0 flex flex-col gap-5">
 
       <!-- Topic Input Card -->
-      <div class="glass rounded-2xl p-6 glow-hover transition-all duration-300">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-          <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="ds-card ds-card-hover p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="100" data-aos-duration="600">
+        <div class="accent-line mb-5"></div>
+        <h2 class="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4" style="color: #a78bfa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
           </svg>
           Topic
         </h2>
         <input id="topic-input" type="text" placeholder="e.g. Neural Networks, Photosynthesis, Blockchain..."
-               class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-slate-200 placeholder-slate-600 focus:border-accent/50 focus:outline-none transition-colors mb-4" />
+               class="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/[0.07] text-sm text-zinc-200 placeholder-zinc-600 focus:border-violet-500/50 focus:outline-none transition-colors mb-4" />
 
-        <label class="text-[11px] font-medium text-slate-500 uppercase tracking-wide mb-2 block">Difficulty</label>
+        <label class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-2 block">Difficulty</label>
         <div class="flex gap-2 mb-5">
           <button onclick="setDifficulty('beginner')" id="diff-beginner"
-                  class="diff-btn active flex-1 py-2 px-3 rounded-lg text-xs font-semibold border border-white/10 text-slate-400 hover:text-white transition-all">
+                  class="diff-btn active flex-1 py-2 px-3 rounded-lg text-xs font-semibold border border-white/[0.07] text-zinc-400 hover:text-white transition-all">
             Beginner
           </button>
           <button onclick="setDifficulty('intermediate')" id="diff-intermediate"
-                  class="diff-btn flex-1 py-2 px-3 rounded-lg text-xs font-semibold border border-white/10 text-slate-400 hover:text-white transition-all">
+                  class="diff-btn flex-1 py-2 px-3 rounded-lg text-xs font-semibold border border-white/[0.07] text-zinc-400 hover:text-white transition-all">
             Intermediate
           </button>
           <button onclick="setDifficulty('advanced')" id="diff-advanced"
-                  class="diff-btn flex-1 py-2 px-3 rounded-lg text-xs font-semibold border border-white/10 text-slate-400 hover:text-white transition-all">
+                  class="diff-btn flex-1 py-2 px-3 rounded-lg text-xs font-semibold border border-white/[0.07] text-zinc-400 hover:text-white transition-all">
             Advanced
           </button>
         </div>
 
         <button id="start-btn" onclick="startLesson()"
-                class="w-full h-11 rounded-xl bg-accent hover:bg-accent-muted text-white text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                class="w-full h-11 rounded-xl text-white text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style="background: #a78bfa;"
+                onmouseover="this.style.background='#8b5cf6'" onmouseout="this.style.background='#a78bfa'">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -310,45 +347,45 @@
         </button>
 
         <!-- Processing status -->
-        <div id="processing-status" class="hidden mt-4 items-center gap-3 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/5">
+        <div id="processing-status" class="hidden mt-4 items-center gap-3 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
           <div class="spinner"></div>
-          <span class="text-xs text-slate-400" id="status-text">Generating lesson...</span>
+          <span class="text-xs text-zinc-400" id="status-text">Generating lesson...</span>
         </div>
       </div>
 
       <!-- Attempt Tracker Card -->
-      <div class="glass rounded-2xl p-6 glow-hover transition-all duration-300">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-          <svg class="w-4 h-4 text-warn" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="ds-card ds-card-hover p-6 transition-all duration-300" data-aos="fade-up" data-aos-delay="200" data-aos-duration="600">
+        <h2 class="text-sm font-semibold text-zinc-300 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
           </svg>
           Attempt Tracker
         </h2>
 
         <div class="flex items-center justify-between mb-4">
-          <span class="text-[11px] text-slate-500 uppercase tracking-wide font-medium">Current Attempt</span>
+          <span class="text-[11px] text-zinc-500 uppercase tracking-wide font-medium">Current Attempt</span>
           <span class="text-lg font-bold text-white" id="attempt-display">--</span>
         </div>
 
         <!-- Attempt dots -->
         <div class="flex items-center gap-3 mb-4" id="attempt-dots">
           <div class="attempt-dot flex flex-col items-center gap-1.5">
-            <div class="w-10 h-10 rounded-full border-2 border-white/10 flex items-center justify-center text-xs font-bold text-slate-600" id="dot-1">1</div>
-            <span class="text-[10px] text-slate-600" id="dot-1-label">--</span>
+            <div class="w-10 h-10 rounded-full border-2 border-white/[0.07] flex items-center justify-center text-xs font-bold text-zinc-600" id="dot-1">1</div>
+            <span class="text-[10px] text-zinc-600" id="dot-1-label">--</span>
           </div>
           <div class="attempt-dot flex flex-col items-center gap-1.5">
-            <div class="w-10 h-10 rounded-full border-2 border-white/10 flex items-center justify-center text-xs font-bold text-slate-600" id="dot-2">2</div>
-            <span class="text-[10px] text-slate-600" id="dot-2-label">--</span>
+            <div class="w-10 h-10 rounded-full border-2 border-white/[0.07] flex items-center justify-center text-xs font-bold text-zinc-600" id="dot-2">2</div>
+            <span class="text-[10px] text-zinc-600" id="dot-2-label">--</span>
           </div>
           <div class="attempt-dot flex flex-col items-center gap-1.5">
-            <div class="w-10 h-10 rounded-full border-2 border-white/10 flex items-center justify-center text-xs font-bold text-slate-600" id="dot-3">3</div>
-            <span class="text-[10px] text-slate-600" id="dot-3-label">--</span>
+            <div class="w-10 h-10 rounded-full border-2 border-white/[0.07] flex items-center justify-center text-xs font-bold text-zinc-600" id="dot-3">3</div>
+            <span class="text-[10px] text-zinc-600" id="dot-3-label">--</span>
           </div>
         </div>
 
         <!-- Score history -->
         <div id="score-history" class="space-y-2">
-          <p class="text-[11px] text-slate-600 text-center">No attempts yet</p>
+          <p class="text-[11px] text-zinc-600 text-center">No attempts yet</p>
         </div>
       </div>
     </aside>
@@ -357,33 +394,33 @@
     <section class="flex-1 flex flex-col gap-5" id="right-panel">
 
       <!-- Empty State -->
-      <div id="empty-state" class="flex-1 flex items-center justify-center">
+      <div id="empty-state" class="flex-1 flex items-center justify-center" data-aos="fade-up" data-aos-delay="300" data-aos-duration="600">
         <div class="text-center max-w-md">
           <div class="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-6">
-            <svg class="w-9 h-9 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-9 h-9 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
             </svg>
           </div>
-          <h3 class="text-lg font-semibold text-slate-300 mb-2">Ready to Learn</h3>
-          <p class="text-sm text-slate-500 leading-relaxed">Enter a topic and difficulty level, then start your lesson. The AI tutor will explain the topic, quiz you, and adapt based on your performance.</p>
+          <h3 class="text-lg font-semibold text-zinc-300 mb-2">Ready to Learn</h3>
+          <p class="text-sm text-zinc-500 leading-relaxed">Enter a topic and difficulty level, then start your lesson. The AI tutor will explain the topic, quiz you, and adapt based on your performance.</p>
         </div>
       </div>
 
       <!-- Teaching Phase -->
       <div id="teaching-phase" class="hidden">
-        <div class="glass rounded-2xl p-6 glow-hover transition-all duration-300 card-enter">
+        <div class="ds-card ds-card-hover p-6 transition-all duration-300 card-enter">
           <div class="flex items-center gap-2 mb-5">
-            <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-              <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: rgba(167,139,250,0.1);">
+              <svg class="w-4 h-4" style="color: #a78bfa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
               </svg>
             </div>
             <div>
               <h3 class="text-sm font-semibold text-white">Lesson Explanation</h3>
-              <p class="text-[11px] text-slate-500" id="lesson-topic-label">Topic loading...</p>
+              <p class="text-[11px] text-zinc-500" id="lesson-topic-label">Topic loading...</p>
             </div>
           </div>
-          <div id="explanation-content" class="text-sm text-slate-300 leading-relaxed space-y-4">
+          <div id="explanation-content" class="text-sm text-zinc-300 leading-relaxed space-y-4">
             <!-- Rendered markdown + mermaid diagrams here -->
           </div>
         </div>
@@ -391,27 +428,29 @@
 
       <!-- Quiz Phase -->
       <div id="quiz-phase" class="hidden">
-        <div class="glass rounded-2xl p-6 glow-hover transition-all duration-300 slide-down">
+        <div class="ds-card ds-card-hover p-6 transition-all duration-300 slide-down">
           <div class="flex items-center justify-between mb-5">
             <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: rgba(167,139,250,0.1);">
+                <svg class="w-4 h-4" style="color: #a78bfa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
               </div>
               <div>
                 <h3 class="text-sm font-semibold text-white">Knowledge Check</h3>
-                <p class="text-[11px] text-slate-500">Answer all 4 questions</p>
+                <p class="text-[11px] text-zinc-500">Answer all 4 questions</p>
               </div>
             </div>
-            <span class="text-xs text-slate-500 font-mono" id="answers-count">0/4 answered</span>
+            <span class="text-xs text-zinc-500 font-mono" id="answers-count">0/4 answered</span>
           </div>
           <div id="quiz-questions" class="space-y-5">
             <!-- Quiz question cards rendered here -->
           </div>
           <div class="mt-6 flex justify-end">
             <button id="submit-answers-btn" onclick="submitAnswers()" disabled
-                    class="h-10 px-6 rounded-xl bg-accent hover:bg-accent-muted text-white text-sm font-semibold transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2">
+                    class="h-10 px-6 rounded-xl text-white text-sm font-semibold transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+                    style="background: #a78bfa;"
+                    onmouseover="if(!this.disabled)this.style.background='#8b5cf6'" onmouseout="this.style.background='#a78bfa'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
@@ -429,11 +468,40 @@
     </section>
   </main>
 
+  <!-- ===== FOOTER ===== -->
+  <footer class="max-w-6xl mx-auto px-6 pb-12">
+    <div class="section-divider mb-8"></div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-sm text-zinc-600">
+        Built by <span class="text-zinc-500 font-medium">Muaz Ashraf</span>
+      </p>
+      <div class="flex items-center gap-4 text-xs text-zinc-700 font-medium">
+        <span>LangGraph</span>
+        <span class="text-zinc-800">/</span>
+        <span>GPT-4o-mini</span>
+        <span class="text-zinc-800">/</span>
+        <span>Flask</span>
+        <span class="text-zinc-800">/</span>
+        <span>Tailwind</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- AOS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init({
+      once: true,
+      easing: 'ease-out-cubic',
+      offset: 60,
+    });
+  </script>
+
   <script>
     // ==========================================
     //  STATE
     // ==========================================
-    let appState = {
+    var appState = {
       phase: 'idle',
       topic: '',
       difficulty: 'beginner',
@@ -445,7 +513,7 @@
       scoreHistory: [],
     };
 
-    let mermaidCounter = 0;
+    var mermaidCounter = 0;
 
     // ==========================================
     //  MERMAID INIT
@@ -454,18 +522,18 @@
       startOnLoad: false,
       theme: 'dark',
       themeVariables: {
-        primaryColor: '#3b82f6',
-        primaryTextColor: '#e2e8f0',
-        primaryBorderColor: '#475569',
-        lineColor: '#64748b',
-        secondaryColor: '#1e293b',
-        tertiaryColor: '#0f172a',
-        background: '#0c1018',
-        mainBkg: '#1a1f2e',
-        nodeBorder: '#475569',
-        clusterBkg: '#131825',
-        titleColor: '#e2e8f0',
-        edgeLabelBackground: '#131825'
+        primaryColor: '#a78bfa',
+        primaryTextColor: '#e4e4e7',
+        primaryBorderColor: '#52525b',
+        lineColor: '#71717a',
+        secondaryColor: '#18181b',
+        tertiaryColor: '#09090b',
+        background: '#09090b',
+        mainBkg: '#18181b',
+        nodeBorder: '#52525b',
+        clusterBkg: '#09090b',
+        titleColor: '#e4e4e7',
+        edgeLabelBackground: '#09090b'
       }
     });
 
@@ -492,23 +560,26 @@
       icon.style.borderColor = '';
 
       if (state === 'idle') {
-        label.className = 'text-xs font-semibold text-slate-400 transition-colors';
+        label.className = 'text-xs font-semibold text-zinc-400 transition-colors';
       } else if (state === 'active') {
         node.classList.add('node-active');
-        node.style.borderColor = 'rgba(59,130,246,0.4)';
-        icon.style.background = 'rgba(59,130,246,0.15)';
-        icon.style.borderColor = 'rgba(59,130,246,0.3)';
-        label.className = 'text-xs font-semibold text-accent transition-colors';
+        node.style.borderColor = 'rgba(167,139,250,0.4)';
+        icon.style.background = 'rgba(167,139,250,0.15)';
+        icon.style.borderColor = 'rgba(167,139,250,0.3)';
+        label.className = 'text-xs font-semibold transition-colors';
+        label.style.color = '#a78bfa';
       } else if (state === 'done') {
         node.style.borderColor = 'rgba(16,185,129,0.3)';
         icon.style.background = 'rgba(16,185,129,0.15)';
         icon.style.borderColor = 'rgba(16,185,129,0.3)';
-        label.className = 'text-xs font-semibold text-success transition-colors';
+        label.className = 'text-xs font-semibold transition-colors';
+        label.style.color = '#10b981';
       } else if (state === 'failed') {
         node.style.borderColor = 'rgba(239,68,68,0.3)';
         icon.style.background = 'rgba(239,68,68,0.12)';
         icon.style.borderColor = 'rgba(239,68,68,0.3)';
-        label.className = 'text-xs font-semibold text-danger transition-colors';
+        label.className = 'text-xs font-semibold transition-colors';
+        label.style.color = '#ef4444';
       }
     }
 
@@ -522,7 +593,7 @@
       ['teach', 'quiz', 'eval'].forEach(function(s) { setFlowState(s, 'idle'); });
       setLineState('line-teach-quiz', 'idle');
       setLineState('line-quiz-eval', 'idle');
-      document.getElementById('loop-arrow-svg').setAttribute('class', 'text-slate-600 transition-colors duration-300');
+      document.getElementById('loop-arrow-svg').setAttribute('class', 'text-zinc-600 transition-colors duration-300');
     }
 
     // ==========================================
@@ -540,25 +611,23 @@
     // ==========================================
     function renderMarkdown(text) {
       var html = text
-        .replace(/^### (.+)$/gm, '<h4 class="text-sm font-semibold text-slate-200 mt-4 mb-2">$1</h4>')
+        .replace(/^### (.+)$/gm, '<h4 class="text-sm font-semibold text-zinc-200 mt-4 mb-2">$1</h4>')
         .replace(/^## (.+)$/gm, '<h3 class="text-base font-semibold text-white mt-5 mb-2">$1</h3>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em class="text-slate-300">$1</em>')
-        .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-white/[0.06] text-accent text-xs font-mono">$1</code>');
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-zinc-100 font-semibold">$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em class="text-zinc-300">$1</em>')
+        .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-white/[0.06] text-xs font-mono" style="color: #a78bfa;">$1</code>');
 
-      // Handle unordered lists
       html = html.replace(/((?:^|\n)- .+(?:\n- .+)*)/g, function(match) {
         var items = match.trim().split('\n').map(function(item) {
-          return '<li class="text-sm text-slate-300 leading-relaxed">' + item.replace(/^- /, '') + '</li>';
+          return '<li class="text-sm text-zinc-300 leading-relaxed">' + item.replace(/^- /, '') + '</li>';
         }).join('');
-        return '<ul class="list-disc list-inside space-y-1 my-2 text-slate-400">' + items + '</ul>';
+        return '<ul class="list-disc list-inside space-y-1 my-2 text-zinc-400">' + items + '</ul>';
       });
 
-      // Paragraphs
-      html = html.replace(/\n\n/g, '</p><p class="text-sm text-slate-300 leading-relaxed mt-2">');
+      html = html.replace(/\n\n/g, '</p><p class="text-sm text-zinc-300 leading-relaxed mt-2">');
       html = html.replace(/\n/g, '<br/>');
 
-      return '<p class="text-sm text-slate-300 leading-relaxed">' + html + '</p>';
+      return '<p class="text-sm text-zinc-300 leading-relaxed">' + html + '</p>';
     }
 
     // ==========================================
@@ -568,7 +637,6 @@
       var container = document.getElementById('explanation-content');
       container.innerHTML = '';
 
-      // Split by mermaid code blocks
       var parts = text.split(/```mermaid\n?([\s\S]*?)```/);
 
       for (var i = 0; i < parts.length; i++) {
@@ -582,7 +650,7 @@
         } else {
           var mermaidCode = parts[i].trim();
           var diagramDiv = document.createElement('div');
-          diagramDiv.className = 'mermaid-container my-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 overflow-x-auto';
+          diagramDiv.className = 'mermaid-container my-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] overflow-x-auto';
           container.appendChild(diagramDiv);
 
           try {
@@ -590,7 +658,7 @@
             var result = await mermaid.render('mermaid-diagram-' + mermaidCounter, mermaidCode);
             diagramDiv.innerHTML = result.svg;
           } catch (err) {
-            diagramDiv.innerHTML = '<p class="text-xs text-slate-500 font-mono">Diagram rendering unavailable</p>';
+            diagramDiv.innerHTML = '<p class="text-xs text-zinc-500 font-mono">Diagram rendering unavailable</p>';
           }
         }
       }
@@ -608,7 +676,7 @@
         btnArea = document.createElement('div');
         btnArea.id = 'start-quiz-area';
         btnArea.className = 'flex justify-center py-6';
-        btnArea.innerHTML = '<button onclick="revealQuiz()" class="h-12 px-8 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 active:scale-[0.98] transition-all duration-200 flex items-center gap-2 badge-pop">' +
+        btnArea.innerHTML = '<button onclick="revealQuiz()" class="h-12 px-8 rounded-xl text-white text-sm font-semibold active:scale-[0.98] transition-all duration-200 flex items-center gap-2 badge-pop" style="background: #a78bfa;" onmouseover="this.style.background=\'#8b5cf6\'" onmouseout="this.style.background=\'#a78bfa\'">' +
           '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
           'Start Quiz</button>';
         var teachingPhase = document.getElementById('teaching-phase');
@@ -644,17 +712,17 @@
 
         var optionsHTML = q.options.map(function(opt, oIndex) {
           var letter = ['A', 'B', 'C', 'D'][oIndex];
-          return '<div class="quiz-option rounded-lg border border-white/8 px-4 py-3 flex items-center gap-3" ' +
+          return '<div class="quiz-option rounded-xl border border-white/[0.07] px-4 py-3 flex items-center gap-3" ' +
             'onclick="selectOption(' + qIndex + ', \'' + letter + '\')" id="q-' + qIndex + '-opt-' + letter + '">' +
-            '<span class="w-7 h-7 rounded-md bg-white/[0.04] border border-white/10 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0 transition-all" ' +
+            '<span class="w-7 h-7 rounded-md bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-xs font-bold text-zinc-500 flex-shrink-0 transition-all" ' +
             'id="q-' + qIndex + '-letter-' + letter + '">' + letter + '</span>' +
-            '<span class="text-sm text-slate-400 transition-colors">' + sanitize(opt) + '</span>' +
+            '<span class="text-sm text-zinc-400 transition-colors">' + sanitize(opt) + '</span>' +
             '</div>';
         }).join('');
 
         qDiv.innerHTML =
-          '<p class="text-sm font-medium text-slate-200 mb-3">' +
-            '<span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-white/[0.06] text-[11px] font-bold text-slate-400 mr-2">' + (qIndex + 1) + '</span>' +
+          '<p class="text-sm font-medium text-zinc-200 mb-3">' +
+            '<span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-white/[0.06] text-[11px] font-bold text-zinc-400 mr-2">' + (qIndex + 1) + '</span>' +
             sanitize(q.question) +
           '</p>' +
           '<div class="grid grid-cols-1 gap-2" id="q-' + qIndex + '-options">' + optionsHTML + '</div>';
@@ -680,9 +748,9 @@
       var opt = document.getElementById('q-' + qIndex + '-opt-' + letter);
       var ltr = document.getElementById('q-' + qIndex + '-letter-' + letter);
       opt.classList.add('selected');
-      ltr.style.background = 'rgba(59,130,246,0.2)';
-      ltr.style.borderColor = 'rgba(59,130,246,0.4)';
-      ltr.style.color = '#3b82f6';
+      ltr.style.background = 'rgba(167,139,250,0.2)';
+      ltr.style.borderColor = 'rgba(167,139,250,0.4)';
+      ltr.style.color = '#a78bfa';
 
       appState.selectedAnswers[qIndex] = letter;
       updateAnswerCount();
@@ -725,11 +793,11 @@
             label.style.color = '#f59e0b';
           }
         } else if (i === attempt) {
-          dot.style.borderColor = 'rgba(59,130,246,0.5)';
-          dot.style.color = '#3b82f6';
-          dot.style.background = 'rgba(59,130,246,0.1)';
+          dot.style.borderColor = 'rgba(167,139,250,0.5)';
+          dot.style.color = '#a78bfa';
+          dot.style.background = 'rgba(167,139,250,0.1)';
           label.textContent = 'Current';
-          label.style.color = '#3b82f6';
+          label.style.color = '#a78bfa';
         } else {
           dot.style.borderColor = '';
           dot.style.color = '';
@@ -741,12 +809,12 @@
 
       var histContainer = document.getElementById('score-history');
       if (scoreHistory.length === 0) {
-        histContainer.innerHTML = '<p class="text-[11px] text-slate-600 text-center">No attempts yet</p>';
+        histContainer.innerHTML = '<p class="text-[11px] text-zinc-600 text-center">No attempts yet</p>';
       } else {
         histContainer.innerHTML = scoreHistory.map(function(s, idx) {
-          return '<div class="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.02] border border-white/5">' +
-            '<span class="text-xs text-slate-500">Attempt ' + (idx + 1) + '</span>' +
-            '<span class="text-xs font-semibold ' + (s.passed ? 'text-success' : 'text-warn') + '">' + s.score + ' ' + (s.passed ? 'Pass' : 'Fail') + '</span>' +
+          return '<div class="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">' +
+            '<span class="text-xs text-zinc-500">Attempt ' + (idx + 1) + '</span>' +
+            '<span class="text-xs font-semibold ' + (s.passed ? 'text-emerald-400' : 'text-amber-400') + '">' + s.score + ' ' + (s.passed ? 'Pass' : 'Fail') + '</span>' +
           '</div>';
         }).join('');
       }
@@ -932,7 +1000,7 @@
 
       if (passed) {
         resultHTML =
-          '<div class="glass rounded-2xl p-6 card-enter relative overflow-hidden">' +
+          '<div class="ds-card p-6 card-enter relative overflow-hidden">' +
             '<div class="absolute inset-0 pointer-events-none" id="confetti-container"></div>' +
             '<div class="flex items-start gap-6">' +
               '<div class="flex-shrink-0">' +
@@ -940,19 +1008,19 @@
                   '<circle cx="55" cy="55" r="45" stroke="rgba(255,255,255,0.06)" stroke-width="6" fill="none"/>' +
                   '<circle cx="55" cy="55" r="45" stroke="#10b981" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '" class="score-ring" transform="rotate(-90 55 55)"/>' +
                   '<text x="55" y="50" text-anchor="middle" fill="white" font-size="22" font-weight="700" font-family="Inter">' + correct + '</text>' +
-                  '<text x="55" y="65" text-anchor="middle" fill="rgba(148,163,184,0.6)" font-size="11" font-family="Inter">/ ' + total + '</text>' +
+                  '<text x="55" y="65" text-anchor="middle" fill="rgba(161,161,170,0.6)" font-size="11" font-family="Inter">/ ' + total + '</text>' +
                 '</svg>' +
               '</div>' +
               '<div class="flex-1 pt-2">' +
                 '<div class="flex items-center gap-2 mb-2">' +
-                  '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-semibold badge-pop">' +
+                  '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold badge-pop" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #10b981;">' +
                     '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' +
                     'Passed' +
                   '</span>' +
-                  '<span class="text-xs text-slate-500">' + pct + '% correct</span>' +
+                  '<span class="text-xs text-zinc-500">' + pct + '% correct</span>' +
                 '</div>' +
                 '<h3 class="text-lg font-bold text-white mb-2">Congratulations!</h3>' +
-                '<p class="text-sm text-slate-400 leading-relaxed">' + sanitize(evaluation.feedback || 'You have demonstrated a strong understanding of this topic. Well done!') + '</p>' +
+                '<p class="text-sm text-zinc-400 leading-relaxed">' + sanitize(evaluation.feedback || 'You have demonstrated a strong understanding of this topic. Well done!') + '</p>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -962,10 +1030,10 @@
         if (weakAreas.length > 0) {
           weakAreasHTML =
             '<div class="mb-4">' +
-              '<p class="text-[11px] text-slate-500 uppercase tracking-wide font-medium mb-2">Areas to review</p>' +
+              '<p class="text-[11px] text-zinc-500 uppercase tracking-wide font-medium mb-2">Areas to review</p>' +
               '<div class="flex flex-wrap gap-2">' +
                 weakAreas.map(function(area) {
-                  return '<span class="px-2.5 py-1 rounded-md bg-warn/5 border border-warn/10 text-warn text-xs">' + sanitize(area) + '</span>';
+                  return '<span class="px-2.5 py-1 rounded-md text-xs" style="background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.1); color: #f59e0b;">' + sanitize(area) + '</span>';
                 }).join('') +
               '</div>' +
             '</div>';
@@ -974,44 +1042,44 @@
         var actionHTML = '';
         if (canRetry) {
           actionHTML =
-            '<button onclick="retryLesson()" class="h-9 px-5 rounded-lg bg-warn/10 hover:bg-warn/20 border border-warn/20 text-warn text-xs font-semibold transition-all duration-200 flex items-center gap-2">' +
+            '<button onclick="retryLesson()" class="h-9 px-5 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center gap-2" style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: #f59e0b;" onmouseover="this.style.background=\'rgba(245,158,11,0.18)\'" onmouseout="this.style.background=\'rgba(245,158,11,0.1)\'">' +
               '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>' +
               'Try Again (Attempt ' + (appState.attempt + 1) + '/' + appState.maxAttempts + ')' +
             '</button>';
         } else {
           var reviewItemsHTML = weakAreas.length > 0
             ? '<ul class="mt-2 space-y-1">' + weakAreas.map(function(a) {
-                return '<li class="text-xs text-slate-400 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-slate-600"></span>' + sanitize(a) + '</li>';
+                return '<li class="text-xs text-zinc-400 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-zinc-600"></span>' + sanitize(a) + '</li>';
               }).join('') + '</ul>'
             : '';
           actionHTML =
-            '<div class="p-4 rounded-xl bg-white/[0.02] border border-white/5 mt-2">' +
-              '<p class="text-sm font-semibold text-slate-300 mb-2">Keep studying!</p>' +
-              '<p class="text-xs text-slate-500 leading-relaxed">You have used all ' + appState.maxAttempts + ' attempts. Here are the key concepts you should review:</p>' +
+            '<div class="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] mt-2">' +
+              '<p class="text-sm font-semibold text-zinc-300 mb-2">Keep studying!</p>' +
+              '<p class="text-xs text-zinc-500 leading-relaxed">You have used all ' + appState.maxAttempts + ' attempts. Here are the key concepts you should review:</p>' +
               reviewItemsHTML +
             '</div>';
         }
 
         resultHTML =
-          '<div class="glass rounded-2xl p-6 card-enter" style="border-color: rgba(245,158,11,0.15);">' +
+          '<div class="ds-card p-6 card-enter" style="border-color: rgba(245,158,11,0.15);">' +
             '<div class="flex items-start gap-6">' +
               '<div class="flex-shrink-0">' +
                 '<svg width="110" height="110" viewBox="0 0 110 110" class="badge-pop">' +
                   '<circle cx="55" cy="55" r="45" stroke="rgba(255,255,255,0.06)" stroke-width="6" fill="none"/>' +
                   '<circle cx="55" cy="55" r="45" stroke="#f59e0b" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '" class="score-ring" transform="rotate(-90 55 55)"/>' +
                   '<text x="55" y="50" text-anchor="middle" fill="white" font-size="22" font-weight="700" font-family="Inter">' + correct + '</text>' +
-                  '<text x="55" y="65" text-anchor="middle" fill="rgba(148,163,184,0.6)" font-size="11" font-family="Inter">/ ' + total + '</text>' +
+                  '<text x="55" y="65" text-anchor="middle" fill="rgba(161,161,170,0.6)" font-size="11" font-family="Inter">/ ' + total + '</text>' +
                 '</svg>' +
               '</div>' +
               '<div class="flex-1 pt-2">' +
                 '<div class="flex items-center gap-2 mb-2">' +
-                  '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warn/10 border border-warn/20 text-warn text-xs font-semibold badge-pop">' +
+                  '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold badge-pop" style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: #f59e0b;">' +
                     '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
                     'Needs Improvement' +
                   '</span>' +
-                  '<span class="text-xs text-slate-500">' + pct + '% correct</span>' +
+                  '<span class="text-xs text-zinc-500">' + pct + '% correct</span>' +
                 '</div>' +
-                '<p class="text-sm text-slate-400 leading-relaxed mb-3">' + sanitize(evaluation.feedback || 'Some concepts need more review. Let us try again!') + '</p>' +
+                '<p class="text-sm text-zinc-400 leading-relaxed mb-3">' + sanitize(evaluation.feedback || 'Some concepts need more review. Let us try again!') + '</p>' +
                 weakAreasHTML +
                 actionHTML +
               '</div>' +
@@ -1033,7 +1101,7 @@
     function spawnConfetti() {
       var container = document.getElementById('confetti-container');
       if (!container) return;
-      var colors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
+      var colors = ['#10b981', '#a78bfa', '#f59e0b', '#8b5cf6', '#ec4899'];
       for (var i = 0; i < 30; i++) {
         var p = document.createElement('div');
         p.className = 'confetti-particle';
@@ -1064,7 +1132,8 @@
       resetFlow();
       setFlowState('teach', 'active');
       setLineState('line-teach-quiz', 'active');
-      document.getElementById('loop-arrow-svg').setAttribute('class', 'text-accent transition-colors duration-300');
+      document.getElementById('loop-arrow-svg').setAttribute('class', 'transition-colors duration-300');
+      document.getElementById('loop-arrow-svg').style.color = '#a78bfa';
       updateAttemptTracker();
 
       try {
@@ -1094,7 +1163,8 @@
           showStartQuizButton(questions);
         }, 800);
 
-        document.getElementById('loop-arrow-svg').setAttribute('class', 'text-slate-600 transition-colors duration-300');
+        document.getElementById('loop-arrow-svg').setAttribute('class', 'text-zinc-600 transition-colors duration-300');
+        document.getElementById('loop-arrow-svg').style.color = '';
         updateAttemptTracker();
 
       } catch (err) {
@@ -1124,12 +1194,12 @@
       var container = document.getElementById('eval-phase');
       container.classList.remove('hidden');
       container.innerHTML =
-        '<div class="glass rounded-2xl p-5 card-enter" style="border-color: rgba(239,68,68,0.2);">' +
+        '<div class="ds-card p-5 card-enter" style="border-color: rgba(239,68,68,0.2);">' +
           '<div class="flex items-center gap-3">' +
-            '<div class="w-8 h-8 rounded-lg bg-danger/10 flex items-center justify-center flex-shrink-0">' +
-              '<svg class="w-4 h-4 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
+            '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(239,68,68,0.1);">' +
+              '<svg class="w-4 h-4" style="color: #ef4444;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
             '</div>' +
-            '<p class="text-sm text-slate-300">' + sanitize(message) + '</p>' +
+            '<p class="text-sm text-zinc-300">' + sanitize(message) + '</p>' +
           '</div>' +
         '</div>';
     }
